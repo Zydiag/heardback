@@ -200,8 +200,11 @@ def _wait_device(mac: str, connected: bool) -> bool:
         if not first_read and remaining < 0.1:
             return False
         first_read = False
-        rows = _devices("Connected", timeout=min(1, max(0.001, remaining)))
-        if (mac in dict(rows)) == connected:
+        try:
+            rows = _devices("Connected", timeout=min(1, max(0.001, remaining)))
+        except JvError:   # one slow poll read is "not observed yet", not a failure of the whole operation
+            rows = None
+        if rows is not None and (mac in dict(rows)) == connected:
             return True
         if time.monotonic() < deadline:
             time.sleep(min(POWER_POLL_INTERVAL, deadline - time.monotonic()))

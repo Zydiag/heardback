@@ -80,8 +80,10 @@ def run_jv(capsys, monkeypatch):
 
 
 @pytest.fixture
-def run_jv_with(capsys):
+def run_jv_with(capsys, monkeypatch):
     from jv.cli import run as cli_run
+    from jv import desktop
+    monkeypatch.setattr(desktop, "unavailable", lambda name: None)   # as run_jv: mocked desktop, no real programs needed
 
     def run(verbs, *argv):
         code = cli_run(list(argv), verbs=verbs)

@@ -75,7 +75,8 @@ def test_exact_on_time_and_late_boundary(rig, late):
     row = add(clock)
     clock.now += late
     asyncio.run(c.tick())
-    due = coordinator.datetime.fromtimestamp(row["due_at"]).strftime("%-I %M %p").lower()
+    d = coordinator.datetime.fromtimestamp(row["due_at"])
+    due = d.strftime("%-I %p" if d.minute == 0 else "%-I %M %p").lower()   # "8 am" on the hour, any TZ
     assert lines(b) == (["Reminder. Call mum."] if late <= 120 else
                         [f"Late reminder from {due}. Call mum."])
     assert state(row) == "spoken"
@@ -438,5 +439,6 @@ def test_resume_gap_settles_ten_seconds_before_delivery(rig, monkeypatch):
     monkeypatch.setattr(coordinator.asyncio, "sleep", bounded_sleep)
     asyncio.run(run())
     assert sleeps == [5, 10]
-    due = coordinator.datetime.fromtimestamp(row["due_at"]).strftime("%-I %M %p").lower()
+    d = coordinator.datetime.fromtimestamp(row["due_at"])
+    due = d.strftime("%-I %p" if d.minute == 0 else "%-I %M %p").lower()   # "8 am" on the hour, any TZ
     assert lines(b) == [f"Late reminder from {due}. Call mum."] and state(row) == "spoken"
