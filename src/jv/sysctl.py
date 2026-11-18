@@ -14,7 +14,7 @@ from jv.verb import JvError, Verb, fuzzy
 SINK = "@DEFAULT_AUDIO_SINK@"
 STEP, BIT = 10, 5            # percent: "volume up" / "volume up a bit"
 DIM, BRIGHT_MIN = 20, 5      # "dim the screen"; brightness never goes below this (0 = black screen)
-CONNECT_TIMEOUT = 10
+CONNECT_TIMEOUT = -1
 POWER_POLL_SECONDS, POWER_POLL_INTERVAL = 4, 0.2
 BT_OPERATION_BUDGET = 8
 POWER_COMMAND_TIMEOUT = 2.5
