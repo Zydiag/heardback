@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Fake jv for brain tests: scripted replies keyed by "<domain> <verb>" (+ " --dry-run" / " --yes")."""
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+argv = sys.argv[1:]
+if log := os.environ.get("FAKE_JV_LOG"):
+    with open(log, "a") as f:
+        f.write(json.dumps(argv) + "\n")
+if turn_log := os.environ.get("FAKE_JV_TURN_LOG"):
+    with open(turn_log, "a") as f:
+        f.write(json.dumps([argv[:2], os.environ.get("HEARDBACK_TURN")]) + "\n")
+if argv[:1] == ["list"]:
+    cat = os.environ.get("FAKE_JV_CATALOGUE") or Path(__file__).parent.parent / "fixtures/catalogue.json"
+    print(Path(cat).read_text())
+    sys.exit(0)
+if os.environ.get("FAKE_JV_REAL_GRANTS") == "1":
+    from jv.cli import run
+    from jv import desktop
+    from jv.verb import Verb
+    desktop.unavailable = lambda name: None  # test verbs below have no desktop dependencies
+    def act(args):
+        Path(os.environ["FAKE_JV_ACTED"]).write_text(json.dumps(args))
+        return {"say": "sent"}
+    verb = Verb("tmux.type", act, "test typing", {"type": "object", "properties": {
+        "target": {"type": "string"}, "text": {"type": "string"}, "enter": {"type": "boolean"}},
+        "required": ["target", "text"]}, ["target", "text", "--enter"],
+        confirm=True, check=lambda args: "Send 'fix it' to window 2?")
+    wall = Verb("wall.next", act, "test wallpaper", {"type": "object", "properties": {}}, [])
+    sys.exit(run(argv, [verb, wall]))
+key = " ".join(argv[:2]) + "".join(f" {f}" for f in ("--dry-run", "--yes") if f in argv)
+script = {}
+if (p := os.environ.get("FAKE_JV_SCRIPT")) and os.path.exists(p):
+    script = json.loads(Path(p).read_text())
+# "+tainted": the brain's dry-run asked for the injection gate
+r = script.get(key + " +tainted" if os.environ.get("HEARDBACK_TAINTED") == "1" else key) or \
+    script.get(key, {"rc": 0, "stdout": '{"ok":true}'})
+time.sleep(r.get("sleep", 0))
+sys.stdout.write(r.get("stdout", ""))
+sys.stderr.write(r.get("stderr", ""))
+sys.exit(r.get("rc", 0))

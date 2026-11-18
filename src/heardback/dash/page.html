@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>heardback</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #1b1713;
+    --well: #14110e;
+    --raised: #27211b;
+    --lift: #302820;
+    --rule: #2e2820;
+    --control: #4a4136;
+    --ink: #f3ede3;
+    --sub: #c4baab;
+    --meta: #a29789;
+    --ember: #f09a4a;
+    --ember-pale: #f7d3a9;
+    --ember-wash: #2e2116;
+    --yellow: #f0cf5a;
+    --red: #ff7f8e;
+    --red-wash: #3a1c22;
+    --green: #93d3a2;
+    --on-lit: #1a1006;
+    --band: 72px;
+    --edge: max(24px, calc((100vw - 1600px) / 2));
+    --side: 400px;
+    /* One radius system: surfaces 14, controls 8, message bubbles 18 with a 6 px tail corner. */
+    --r-surface: 14px;
+    --r-control: 8px;
+    --sans: "Fira Sans", "Cantarell", system-ui, sans-serif;
+    --mono: "Cascadia Mono", "Adwaita Mono", "DejaVu Sans Mono", monospace;
+    --out: cubic-bezier(.16, 1, .3, 1);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ground); color: var(--ink); font: 15px/1.5 var(--sans); scrollbar-color: var(--control) transparent; scroll-padding-bottom: 160px; }
+  body { margin: 0; min-width: 0; background: var(--ground); }
+  ::selection { background: var(--ember); color: var(--on-lit); }
+  h1, h2, h3, p, dl, dd, ul, ol { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  button, textarea, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; border-radius: 4px; }
+  [hidden] { display: none !important; }
+  .num, .figure b, .stats b, .ctx, #fresh, .voice-duration, .tl, .raw, .lat b, .dictation-meta dd, .elapsed {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .dim { color: var(--meta); }
+  .err { color: var(--red); }
+  .warn { color: var(--yellow); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- Presence: the orb follows the real voice state; its rhythm is fixed, never an audio level. ---------- */
+  .orb { display: block; flex: none; overflow: visible; color: var(--sub); }
+  .orb circle { fill: none; stroke: currentColor; transform-box: fill-box; transform-origin: center; }
+  .orb .halo { stroke-width: 1.5; opacity: 0; }
+  .orb .ring { stroke-width: 1.5; opacity: .45; }
+  .orb .arc { stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 24 76; opacity: 0; }
+  .orb .core { fill: currentColor; stroke: none; }
+  [data-state="idle"] .orb .core { animation: breathe 5.5s ease-in-out infinite; }
+  [data-state="listen"] .orb, [data-state="dictation"] .orb { color: var(--ember); }
+  [data-state="listen"] .orb .ring { opacity: .9; }
+  [data-state="listen"] .orb .halo { animation: ripple 1.8s var(--out) infinite; }
+  [data-state="think"] .orb { color: var(--ember-pale); }
+  [data-state="think"] .orb .arc { opacity: 1; animation: orbit 1.4s linear infinite; }
+  [data-state="think"] .orb .core { animation: breathe 2.8s ease-in-out infinite; }
+  [data-state="speak"] .orb { color: var(--ink); }
+  [data-state="speak"] .orb .ring { opacity: .8; }
+  [data-state="speak"] .orb .halo { animation: ripple 1.3s var(--out) infinite; }
+  [data-state="confirm"] .orb { color: var(--yellow); }
+  [data-state="confirm"] .orb .ring { opacity: .9; stroke-dasharray: 4 4; }
+  [data-state="confirm"] .orb .core { animation: breathe 1.6s ease-in-out infinite; }
+  [data-state="dictation"] .orb .arc { opacity: 1; animation: orbit 5s linear infinite reverse; }
+  [data-state="offline"] .orb, body[data-stale] .orb { color: var(--meta); opacity: .5; }
+  body[data-stale] .orb * { animation: none !important; }
+  @keyframes breathe { 50% { transform: scale(.78); opacity: .7; } }
+  @keyframes ripple { from { transform: scale(.75); opacity: .7; } to { transform: scale(1.35); opacity: 0; } }
+  @keyframes orbit { to { transform: rotate(360deg); } }
+  @keyframes arrive { from { transform: translateY(10px); opacity: .35; } to { transform: none; opacity: 1; } }
+
+  /* ---------- Header: heardback as the other party in the conversation. ---------- */
+  .masthead {
+    position: sticky; top: 0; z-index: 3; height: var(--band);
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 var(--edge); background: var(--well); border-bottom: 1px solid var(--rule);
+  }
+  .masthead .orb { width: 44px; height: 44px; }
+  .who-am-i { min-width: 0; flex: 1; }
+  .who-am-i h1 { font-size: 17px; line-height: 1.2; font-weight: 600; letter-spacing: -.01em; }
+  #live { display: flex; align-items: baseline; gap: 10px; min-width: 0; color: var(--sub); font-size: 14px; }
+  #live strong { font-weight: 500; color: inherit; overflow-wrap: anywhere; }
+  .masthead[data-state="listen"] #live, .masthead[data-state="dictation"] #live { color: var(--ember); }
+  .masthead[data-state="think"] #live { color: var(--ember-pale); }
+  .masthead[data-state="speak"] #live { color: var(--ink); }
+  .masthead[data-state="confirm"] #live { color: var(--yellow); }
+  body[data-stale] #live { color: var(--meta); }
+  body[data-stale] #live strong::before { content: "Last known: "; font-weight: 400; }
+  .voice-duration { font-size: 12.5px; color: var(--meta); }
+  .bar-end { display: flex; align-items: center; gap: 20px; flex: none; font-size: 13px; color: var(--meta); }
+  #mic-state.warn { color: var(--yellow); font-weight: 500; }
+  #fresh { font-size: 12px; white-space: nowrap; }
+  #fresh.stale { color: var(--yellow); }
+  #connection-note { padding: 8px var(--edge); background: #2c2510; color: var(--yellow); font-size: 13px; overflow-wrap: anywhere; }
+
+  /* ---------- Layout: conversation leads; everything else lives in the side panel. ---------- */
+  .desk { display: grid; grid-template-columns: minmax(0, 1fr) var(--side); gap: 40px; padding: 0 var(--edge); align-items: start; }
+  .convo { min-width: 0; min-height: calc(100dvh - var(--band)); display: flex; flex-direction: column; }
+  .stream { flex: 1; width: 100%; max-width: 780px; margin: 0 auto; padding: 28px 0 8px; }
+  .side { position: sticky; top: var(--band); max-height: calc(100dvh - var(--band)); overflow-y: auto; padding: 20px 2px 32px; min-width: 0; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; padding: 4px; background: var(--well); border-radius: var(--r-control); overflow-x: auto; }
+  .tabs button { flex: 1 0 auto; min-height: 36px; padding: 0 12px; border: 0; border-radius: 6px; background: none; color: var(--meta); cursor: pointer; font-size: 13.5px; }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-current] { background: var(--raised); color: var(--ink); }
+  .tabs button[data-view="chat"] { display: none; }
+  .pane { display: none; gap: 14px; min-width: 0; }
+  body[data-view="today"] [data-pane="today"], body[data-view="chat"] [data-pane="today"],
+  body[data-view="sessions"] [data-pane="sessions"],
+  body[data-view="system"] [data-pane="system"] { display: grid; }
+
+  /* ---------- The conversation ---------- */
+  .day { margin: 8px 0 20px; text-align: center; font-size: 12.5px; color: var(--meta); }
+  .turn { padding: 6px 0 22px; }
+  .turn.arrived { animation: arrive .6s var(--out); }
+  .turn.flash .reply { background: var(--ember-wash); border-radius: var(--r-control); }
+  .you { display: flex; justify-content: flex-end; margin-bottom: 14px; padding-left: 15%; }
+  .bubble { max-width: 100%; padding: 10px 16px; background: var(--raised); border-radius: 18px 18px 6px 18px; font-size: 15.5px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .bubble.listening { color: var(--sub); background: var(--ember-wash); }
+  .heardback { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 14px; padding-right: 8%; }
+  .heardback .orb { width: 30px; height: 30px; margin-top: 1px; }
+  .reply { min-width: 0; transition: background-color .3s ease-out; }
+  .said { font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .said.none { color: var(--meta); font-size: 14.5px; }
+  .said .asked { color: var(--meta); font-size: 13px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 6px; }
+  .act { display: inline-flex; align-items: center; gap: 5px; min-width: 0; font: 12.5px var(--mono); color: var(--meta); overflow-wrap: anywhere; }
+  .act svg { flex: none; width: 12px; height: 12px; color: var(--green); }
+  .act.no, .act.no svg { color: var(--red); }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; margin-top: 8px; font-size: 12.5px; color: var(--meta); }
+  .meta > span { white-space: nowrap; }
+  .tag { padding: 1px 7px; background: var(--red-wash); border-radius: 6px; color: var(--red); white-space: nowrap; }
+  .tag.info { background: var(--raised); color: var(--sub); }
+  .meta button { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 0 8px; margin-left: -8px; border: 0; border-radius: 6px; background: none; color: var(--meta); cursor: pointer; }
+  .meta-btns { display: flex; margin-left: auto; }
+  .meta-btns button + button { margin-left: 0; }
+  .meta button:hover, .meta button[aria-expanded="true"] { color: var(--ink); background: var(--raised); }
+  .meta button svg { width: 14px; height: 14px; }
+  .quiet-turn { display: flex; justify-content: flex-end; }
+  .quiet-turn .reply { max-width: 520px; text-align: right; }
+  .quiet-turn .meta { justify-content: flex-end; }
+  .quiet-turn .meta-btns { margin-left: 0; }
+
+  /* Notes read as the user's margin notes on a reply. */
+  .notes { display: grid; gap: 8px; margin-top: 10px; }
+  .notes:empty { display: none; }
+  .saved-note { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 2px 10px; padding: 9px 12px; background: var(--ember-wash); border-radius: var(--r-control); font-size: 14px; color: var(--ember-pale); }
+  .saved-note svg { width: 14px; height: 14px; margin-top: 3px; color: var(--ember); }
+  .saved-note p { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+  .saved-note time { grid-column: 2; font: 11.5px var(--mono); color: var(--meta); }
+  .row-note { margin-top: 10px; }
+
+  /* Details: timings, route, actions, trace. One click away. */
+  .details { margin-top: 10px; padding: 14px 16px; background: var(--well); border-radius: var(--r-control); font-size: 13px; color: var(--sub); }
+  .details dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; }
+  .details dt { color: var(--meta); }
+  .details dd { overflow-wrap: anywhere; }
+  .lbar { position: relative; display: flex; height: 6px; margin: 4px 0 12px; background: var(--raised); border-radius: 3px; overflow: hidden; }
+  .lbar i { display: block; height: 100%; }
+  .lbar .stt { background: var(--ember-pale); }
+  .lbar .think { background: var(--ember); }
+  .lbar .over { background: var(--red); }
+  .lat { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-bottom: 12px; font-size: 12.5px; color: var(--meta); }
+  .lat b { font-weight: 500; color: var(--ink); }
+  .lat b.slow { color: var(--yellow); }
+  .details summary { width: fit-content; margin-top: 12px; cursor: pointer; color: var(--meta); }
+  .details summary:hover { color: var(--ink); }
+  .tl, .raw { max-height: 320px; overflow: auto; margin: 8px 0 0; padding: 8px 10px; background: var(--ground); border-radius: 6px; font-size: 12px; color: var(--sub); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .raw .bad { color: var(--red); }
+
+  /* The turn in flight, drawn live from the voice state and the trace. */
+  #inflight:empty { display: none; }
+  #inflight .turn { padding-bottom: 8px; }
+  .thinking { display: flex; align-items: baseline; gap: 10px; color: var(--ember-pale); font-size: 15px; }
+  .thinking .elapsed { font-size: 12.5px; color: var(--meta); }
+  [data-state="confirm"] .said + .thinking, [data-state="confirm"] .thinking { color: var(--yellow); }
+
+  #dictation { margin: 0 0 18px 15%; padding: 14px 16px; background: var(--ember-wash); border-radius: 18px 18px 6px 18px; }
+  #dictation h2 { font-size: 13px; font-weight: 500; color: var(--ember); margin-bottom: 6px; }
+  .dictation-kind { margin-bottom: 4px; color: var(--ember-pale); font-size: 12.5px; }
+  .dictation-text { margin: 0; max-height: 40vh; overflow: auto; font: 500 17px/1.5 var(--sans); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .dictation-meta { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-top: 10px; font-size: 12px; color: var(--meta); }
+  .dictation-meta div { display: flex; gap: 6px; min-width: 0; }
+  .dictation-meta dd { color: var(--sub); overflow-wrap: anywhere; }
+
+  .empty-chat { margin: 12vh auto 0; max-width: 360px; text-align: center; color: var(--sub); }
+  .empty-chat .orb { width: 56px; height: 56px; margin: 0 auto 16px; }
+  .filter-note { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; font-size: 13px; color: var(--sub); }
+  .filter-note button { border: 0; background: none; color: var(--ember); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+
+  /* ---------- Composer: the quick note on the latest reply. ---------- */
+  .composer-wrap { position: sticky; bottom: 0; z-index: 2; padding: 20px 0 20px; background: linear-gradient(to bottom, transparent, var(--ground) 20px); }
+  .composer { max-width: 780px; margin: 0 auto; padding: 10px 12px 10px 16px; background: var(--raised); border: 1px solid var(--lift); border-radius: var(--r-surface); box-shadow: 0 10px 30px -12px rgb(8 6 4 / .7); }
+  .composer:focus-within { border-color: var(--control); }
+  .note-target { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; color: var(--meta); }
+  .note-target label { flex: none; }
+  .note-target select { min-width: 0; max-width: 100%; flex: 0 1 auto; padding: 3px 6px; border: 0; border-radius: 6px; background: var(--lift); color: var(--sub); font-size: 12.5px; text-overflow: ellipsis; cursor: pointer; }
+  .composer-row { display: flex; align-items: flex-end; gap: 10px; margin-top: 4px; }
+  textarea { display: block; width: 100%; min-width: 0; resize: none; border: 0; background: none; padding: 6px 0; line-height: 1.5; caret-color: var(--ember); field-sizing: content; min-height: 2.6em; max-height: 9em; }
+  textarea:focus-visible { outline: none; }
+  .composer:has(textarea:focus-visible) { outline: 2px solid var(--ember); outline-offset: 2px; }
+  textarea::placeholder { color: var(--meta); opacity: 1; }
+  .row-note textarea { padding: 9px 12px; background: var(--well); border: 1px solid var(--control); border-radius: var(--r-control); }
+  .row-note textarea:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+  .note-footer { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 6px; }
+  .note-status { font-size: 12px; color: var(--meta); overflow-wrap: anywhere; }
+  .save { flex: none; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-control); background: var(--ember); color: var(--on-lit); font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .save:hover { background: var(--ember-pale); }
+  .save:active { transform: translateY(1px); }
+  .save:disabled { background: var(--control); color: var(--sub); cursor: wait; }
+  .save.quiet { background: var(--lift); color: var(--ink); }
+  .save.quiet:hover { background: var(--control); }
+
+  /* ---------- Side panel modules ---------- */
+  .module { min-width: 0; padding: 16px 18px; background: var(--well); border-radius: var(--r-surface); }
+  .module > h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin-bottom: 10px; font-size: 15px; line-height: 1.3; font-weight: 600; }
+  .rem { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .rem input[type=text] { flex: 1 1 200px; min-width: 0; }
+  .rem input, .rem button { padding: 6px 8px; background: var(--well); color: var(--ink); border: 1px solid var(--control); border-radius: var(--r-control); font: inherit; }
+  .rem button { cursor: pointer; }
+  .rem-msg { flex: 1 0 100%; font-size: 12px; color: var(--yellow); }
+  .module > h2 small { font-size: 12.5px; font-weight: 400; color: var(--sub); }
+  .module > h2 small b { font-weight: 600; color: var(--ink); }
+  h3 { margin: 16px 0 6px; font-size: 13px; font-weight: 500; color: var(--sub); }
+  .empty-state { padding: 9px 12px; border: 1px dashed var(--control); border-radius: var(--r-control); color: var(--sub); font-size: 13px; }
+  .panel-error { padding: 9px 12px; background: var(--red-wash); border-radius: var(--r-control); color: var(--red); font-size: 13px; overflow-wrap: anywhere; }
+  .loading { color: var(--meta); font-size: 13px; }
+  .sk { display: block; height: 14px; margin-top: 10px; background: var(--raised); border-radius: 4px; }
+  .sk.short { width: 60%; }
+  body[data-stale] .sk { display: none; }
+
+  .figure { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 10px; }
+  .figure b { font-size: 28px; line-height: 1.15; font-weight: 500; }
+  .figure span { color: var(--sub); font-size: 13px; }
+  .medians { display: grid; gap: 1px; margin-top: 6px; font-size: 12.5px; color: var(--sub); }
+  .medians b { font-family: var(--mono); font-weight: 500; color: var(--ink); }
+  .reel { position: relative; height: 26px; margin-top: 14px; border-bottom: 1px solid var(--control); }
+  .reel i { position: absolute; bottom: 0; width: 2px; height: 12px; margin-left: -1px; background: var(--ember-pale); }
+  .reel i.bad { height: 24px; width: 3px; background: var(--red); }
+  .reel i.live { height: 24px; background: var(--ink); }
+  .reel-ends { display: flex; justify-content: space-between; margin-top: 3px; font: 11.5px var(--mono); color: var(--meta); }
+  .fr { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .fr button { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 2px 10px; background: none; border: 1px solid var(--control); border-radius: var(--r-control); font-size: 13px; color: var(--sub); cursor: pointer; }
+  .fr button:hover { border-color: var(--meta); color: var(--ink); }
+  .fr button b { font: 500 12.5px var(--mono); color: var(--red); }
+  .fr button.on { border-color: var(--ember); color: var(--ink); }
+  .quiet { margin-top: 10px; color: var(--meta); font-size: 12.5px; }
+  .quiet summary { cursor: pointer; width: fit-content; }
+
+  #recent-note-list { display: grid; gap: 10px; }
+  #recent-note-list .for { margin-bottom: 4px; font-size: 12px; color: var(--meta); overflow-wrap: anywhere; }
+  #recent-note-list button.for { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--control); text-underline-offset: .2em; }
+  #recent-note-list button.for:hover { color: var(--ink); }
+
+  .summary { margin-bottom: 8px; font-size: 13px; color: var(--sub); }
+  .row { padding: 10px 0; border-top: 1px solid var(--rule); }
+  .row:first-child { border-top: 0; }
+  .row-main { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; min-width: 0; }
+  .name { min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+  .name .dim { font-weight: 400; }
+  .row-sub { margin-top: 1px; font-size: 12.5px; color: var(--meta); overflow-wrap: anywhere; }
+  .state { flex: none; max-width: 60%; font-size: 13px; color: var(--sub); text-align: right; overflow-wrap: anywhere; }
+  .state.working { color: var(--ember); }
+  .state.waiting { color: var(--yellow); }
+  .meter { display: block; height: 4px; margin-top: 6px; background: var(--raised); border-radius: 2px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--ember); }
+  .meter i.mid { background: var(--yellow); }
+  .meter i.hi { background: var(--red); }
+  .ctx { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11.5px; color: var(--meta); }
+  .kv { display: grid; grid-template-columns: minmax(96px, auto) minmax(0, 1fr); gap: 5px 14px; font-size: 13px; }
+  .kv dt { color: var(--meta); }
+  .kv dd { overflow-wrap: anywhere; }
+  .model-list { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .model-device { color: var(--meta); font: 12px var(--mono); }
+  .model-device.warn { color: var(--yellow); }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .stats b { display: block; font-size: 17px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+  .stats span { font-size: 12.5px; color: var(--meta); }
+  .life { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 2px 12px; font-size: 12.5px; color: var(--sub); }
+  .life span { overflow-wrap: anywhere; }
+
+  /* ---------- One column below 1040: tabs choose between the conversation and the rest. ---------- */
+  @media (max-width: 1040px) {
+    :root { --band: 60px; --edge: 16px; }
+    .masthead .orb { width: 36px; height: 36px; }
+    .masthead { gap: 12px; }
+    .bar-end { flex-direction: column; align-items: flex-end; gap: 0; }
+    #mic-state:not(.warn) { display: none; }
+    .desk { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .side { display: contents; }
+    .tabs { order: -1; position: sticky; top: var(--band); z-index: 2; margin: 0 calc(-1 * var(--edge)); padding: 6px var(--edge); border-radius: 0; border-bottom: 1px solid var(--rule); }
+    .tabs button[data-view="chat"] { display: block; }
+    .convo { min-height: calc(100dvh - var(--band) - 49px); }
+    body:not([data-view="chat"]) .convo { display: none; }
+    body[data-view="chat"] .pane { display: none; }
+    .pane { padding: 16px 0 32px; }
+  }
+  @media (max-width: 1040px) and (max-height: 620px) { .masthead, .tabs { position: static; } }
+  @media (max-width: 560px) {
+    html { font-size: 14.5px; }
+    .stream { padding-top: 18px; }
+    .you { padding-left: 10%; }
+    .heardback { grid-template-columns: 24px minmax(0, 1fr); gap: 10px; padding-right: 0; }
+    .heardback .orb { width: 24px; height: 24px; }
+    #dictation { margin-left: 6%; }
+    .composer-wrap { padding: 12px 0 calc(10px + env(safe-area-inset-bottom)); }
+    .composer textarea, .row-note textarea { font-size: 16px; }
+    .composer-row .save { min-height: 40px; }
+    .meta button { min-height: 32px; }
+    .module { padding: 14px; }
+    .fr button { min-height: 36px; }
+    #fresh { white-space: normal; text-align: right; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body data-view="chat">
+<header class="masthead" id="voice-dock" data-state="offline">
+  <svg class="orb" viewBox="0 0 64 64" aria-hidden="true"><circle class="halo" cx="32" cy="32" r="22"/><circle class="ring" cx="32" cy="32" r="22"/><circle class="arc" cx="32" cy="32" r="22" pathLength="100"/><circle class="core" cx="32" cy="32" r="9"/></svg>
+  <div class="who-am-i">
+    <h1>heardback</h1>
+    <div id="live" aria-live="polite"><strong>Connecting</strong></div>
+  </div>
+  <div class="bar-end">
+    <span id="mic-state">Microphone status unavailable</span>
+    <span id="fresh" role="status">Connecting to heardbackd…</span>
+  </div>
+</header>
+<div id="connection-note" role="status" hidden></div>
+
+<main class="desk">
+  <section class="convo" aria-label="Conversation">
+    <div class="stream">
+      <section id="turns" aria-label="Voice turns">
+        <h2 class="sr">Conversation</h2>
+        <div class="body"><p class="loading">Waiting for the first update…</p><i class="sk"></i><i class="sk short"></i></div>
+      </section>
+      <section id="dictation" aria-label="Dictation preview" hidden>
+        <h2>Dictating</h2>
+        <div id="dictation-detail" hidden>
+          <p class="dictation-kind" id="dictation-kind"></p>
+          <pre class="dictation-text" id="dictation-text" aria-live="polite"></pre>
+          <dl class="dictation-meta">
+            <div><dt>Session</dt><dd id="dictation-session"></dd></div>
+            <div><dt>Phase</dt><dd id="dictation-phase"></dd></div>
+            <div><dt>Revision</dt><dd id="dictation-revision"></dd></div>
+            <div><dt>Target</dt><dd id="dictation-target"></dd></div>
+            <div><dt>Reason</dt><dd id="dictation-reason"></dd></div>
+          </dl>
+        </div>
+      </section>
+      <div id="inflight" aria-live="polite"></div>
+    </div>
+    <div class="composer-wrap">
+      <form class="composer note-form" data-note="quick" aria-label="Quick note">
+        <div class="note-target"><label for="note-target">Note on</label><select id="note-target"><option value="">General note</option></select></div>
+        <div class="composer-row">
+          <label class="sr" for="quick-text">What happened?</label>
+          <textarea id="quick-text" name="text" rows="1" maxlength="2000" required placeholder="What happened? Misheard, too slow, worked well…" aria-describedby="quick-status"></textarea>
+          <button class="save" type="submit">Save note</button>
+        </div>
+        <p class="note-status" id="quick-status" role="status">Enter saves. Shift+Enter adds a line.</p>
+      </form>
+    </div>
+  </section>
+
+  <aside class="side" aria-label="Today, sessions and system">
+    <nav class="tabs" aria-label="Dashboard panes">
+      <button type="button" data-view="chat" aria-current="page">Chat</button>
+      <button type="button" data-view="today">Today</button>
+      <button type="button" data-view="sessions">Sessions</button>
+      <button type="button" data-view="system">System</button>
+    </nav>
+    <div class="pane" data-pane="today">
+      <section class="module" id="friction"><h2>Today</h2><div class="body"><p class="loading">Loading today's summary…</p><i class="sk"></i><i class="sk short"></i></div></section>
+      <section class="module" id="reminders"><h2>Reminders</h2><div class="body"><p class="loading">Loading reminders…</p></div></section>
+      <section class="module" id="recent-notes"><h2>Notes</h2><div id="recent-note-list"><p class="empty-state">No notes yet.</p></div></section>
+    </div>
+    <div class="pane" data-pane="sessions">
+      <section class="module" id="sessions"><h2>Claude sessions</h2><div class="body"><p class="loading">Loading sessions…</p><i class="sk"></i><i class="sk short"></i></div></section>
+    </div>
+    <div class="pane" data-pane="system">
+      <section class="module" id="brain"><h2>heardback brain</h2><div class="body"><p class="loading">Loading brain status…</p><i class="sk"></i><i class="sk short"></i></div></section>
+      <section class="module" id="service"><h2>Machine and service</h2><div class="body"><p class="loading">Loading machine status…</p><i class="sk"></i><i class="sk short"></i></div></section>
+    </div>
+  </aside>
+</main>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const NA = "n/a";
+const tok = (n) => {
+  if (n == null) return NA;
+  const value = n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 2 : 0) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n);
+  return esc(value);
+};
+const usd = (n, d = 2) => n == null ? NA : "$" + Number(n).toFixed(d);
+const secs = (s) => s == null ? NA : s < 1 ? Math.round(s * 1000) + "ms" : Number(s).toFixed(1) + "s";
+const ago = (t, now) => { if (!t) return NA; const s = Math.max(0, now - t); return s < 60 ? Math.round(s) + "s ago" : s < 3600 ? Math.round(s / 60) + "m ago" : (s / 3600).toFixed(1) + "h ago"; };
+const hm = (iso) => iso ? esc(String(iso).slice(11, 19)) : NA;
+const hhmm = (iso) => iso ? String(iso).slice(11, 16) : "";
+const clip = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s; };
+const dur = (s) => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}h ${m}m` : `${m}m ${Math.floor(s % 60)}s`; };
+const epoch = (v) => v == null ? null : typeof v === "number" ? (v > 1e12 ? v / 1000 : v) : Date.parse(v) / 1000;
+const KIND = {reject: "rejected", empty_stt: "empty STT", no_speech: "nothing said", stt_timeout: "STT timeout",
+  confirm_timeout: "confirm: no answer", confirm_no: "confirm: no", denied: "tool denied", jv_rc: "jv rc≠0",
+  tool_error: "tool error", stuck: "stuck", error: "error", claude_limit: "Claude limit"};
+const VIEWS = ["chat", "today", "sessions", "system"];
+const ORB = (r = 22) => `<svg class="orb" viewBox="0 0 64 64" aria-hidden="true"><circle class="halo" cx="32" cy="32" r="${r}"/><circle class="ring" cx="32" cy="32" r="${r}"/><circle class="arc" cx="32" cy="32" r="${r}" pathLength="100"/><circle class="core" cx="32" cy="32" r="9"/></svg>`;
+const ICON_OK = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="ok"><path d="M2.5 6.5 5 9l4.5-6"/></svg>`;
+const ICON_NO = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" role="img" aria-label="failed"><path d="m3 3 6 6M9 3l-6 6"/></svg>`;
+const ICON_NOTE = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h3l7-7-3-3-7 7v3Z"/><path d="m9 4 3 3"/></svg>`;
+const ICON_INFO = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 4h12M2 8h8M2 12h10"/></svg>`;
+const HINT = "Enter saves. Shift+Enter adds a line.";
+let filt = null;
+const open = new Set(), noteOpen = new Set(), drafts = new Map(), noteStatus = new Map(), finished = new Set();
+let haveTurns = false, quickPinned = false, turnsHtml = "", rowsById = new Map();
+const LAT_MAX = 12, SLOW_S = 5;
+let last = 0, lastState = null;
+
+function panel(id, data, render) {
+  const el = $(`#${id} .body`), h = $(`#${id} > h2`);
+  if (!el) return;
+  h.dataset.title ??= h.textContent;   // an error must not keep the counts of the last good render
+  h.textContent = h.dataset.title;
+  let html;
+  if (data == null) html = `<p class="empty-state">No data from this source has been reported.</p>`;
+  else if (data.error) html = `<div class="panel-error" role="alert">This source could not be read: ${esc(data.error)}</div>`;
+  else {
+    try { html = render(data); }
+    catch (e) { html = `<div class="panel-error" role="alert">This panel could not be drawn: ${esc(e && e.message ? e.message : e)}</div>`; }
+  }
+  if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }   // unchanged data keeps selection and focus
+}
+function heading(id, html) { const el = $(`#${id} > h2`); if (el) el.innerHTML = html; }
+function empty(message) { return `<p class="empty-state">${esc(message)}</p>`; }
+
+function setView(name) {
+  if (!VIEWS.includes(name)) return;
+  document.body.dataset.view = name;
+  document.querySelectorAll(".tabs button").forEach((button) => {
+    // On a wide screen the conversation is always shown, so the side panel's Today tab stands in for Chat.
+    const on = button.dataset.view === name || (name === "chat" && button.dataset.view === "today" && innerWidth > 1040);
+    if (on) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current");
+  });
+}
+function focusToken() {
+  const el = document.activeElement;
+  if (!el) return null;
+  if (el.matches("button[data-kind]")) return {sel: "button[data-kind]", key: "kind", value: el.dataset.kind};
+  if (el.matches("button[data-toggle]")) return {sel: `button[data-toggle="${el.dataset.toggle}"]`, key: "id", value: el.dataset.id};
+  return null;
+}
+function restoreFocus(t) {
+  if (!t || document.activeElement !== document.body) return;
+  const el = Array.from(document.querySelectorAll(t.sel)).find((node) => node.dataset[t.key] === t.value);
+  if (el) el.focus({preventScroll: true});
+}
+
+// The header is heardback: its orb and state line follow the voice daemon's real state.
+const STATE = {idle: "Idle", listen: "Listening", confirm: "Waiting for yes or no", think: "Thinking", speak: "Speaking"};
+function liveState(d) {
+  if (!d || d.error || !d.state) return "offline";
+  const preview = d.dictation;
+  const dictating = preview && !["finished", "cancelled"].includes(preview.phase) && !(preview.phase === "stopped" && !preview.held);
+  return dictating ? "dictation" : String(d.state);
+}
+function live(d, now) {
+  const dock = $("#voice-dock"), el = $("#live"), mic = $("#mic-state");
+  const state = liveState(d);
+  dock.dataset.state = $("#inflight").dataset.state = state;
+  if (state === "offline") {
+    el.innerHTML = d && d.error ? `<strong class="err">${esc(d.error)}</strong>` : `<strong>Voice not running</strong>`;
+    mic.textContent = "Microphone status unavailable";
+    mic.className = "";
+    return;
+  }
+  const label = state === "dictation" ? `Dictating, ${d.dictation.phase || "active"}` : (STATE[state] || state) + (d.followup && state === "listen" ? " for a follow-up" : "");
+  const hint = state === "idle" ? `<span class="voice-duration">Say “hey claude”</span>` :
+    `<span class="voice-duration">${esc(d.since ? secs(Math.max(0, now - d.since)) : "")}</span>`;
+  el.innerHTML = `<strong>${esc(label)}</strong>${hint}`;
+  if (d.mic_on === false) { mic.textContent = "Microphone muted"; mic.className = "warn"; }
+  else if (d.automute) { mic.textContent = "Microphone auto-muted"; mic.className = "warn"; }
+  else if (d.mic_on === true) { mic.textContent = "Microphone on"; mic.className = ""; }
+  else { mic.textContent = "Microphone status unavailable"; mic.className = ""; }
+}
+
+function dictation(d) {
+  const card = $("#dictation"), detail = $("#dictation-detail");
+  const fields = ["session", "phase", "revision", "target", "reason", "text", "kind"];
+  if (!d || d.error || d.phase === "finished" || (d.phase === "stopped" && !d.held) || d.phase === "cancelled") {
+    fields.forEach((name) => { const el = $(`#dictation-${name}`); if (el) el.textContent = ""; });
+    card.hidden = true;
+    detail.hidden = true;
+    return;
+  }
+  const desktop = d.mode === "desktop";
+  const target = desktop ? String(d.class || "") : [d.target, d.pane_id ? `pane ${d.pane_id}` : ""].filter(Boolean).join(", ");
+  const values = {
+    session: String(d.session_id || ""), kind: desktop ? "Desktop dictation" : d.provisional ? "Provisional preview" : "Final text",
+    phase: String(d.phase || "unknown"), revision: String(d.revision ?? NA), target,
+    reason: String(d.reason || NA), text: String(d.text ?? "").slice(0, 4000) || "No text yet."
+  };
+  if (desktop) values.text = `Delivered (${d.delivered_chars || 0} characters):\n${String(d.delivered || "").slice(0, 4000)}\n\nHeld (${d.held_chars || 0} characters):\n${String(d.held || "").slice(0, 4000)}`;
+  Object.entries(values).forEach(([name, value]) => {
+    const el = $(`#dictation-${name}`);
+    if (el && el.textContent !== value) el.textContent = value;
+  });
+  card.hidden = false;
+  detail.hidden = false;
+}
+
+// Session and model state.
+function sessions(d, now) {
+  const sp = d.spend || {}, lim = d.limits || {};
+  const spend = sp.error ? `<span class="err" title="${esc(sp.error)}">spend unavailable</span>` : `today <b>${esc(usd(sp.today_usd))}</b>`;
+  let five = `<span title="${esc(lim.note || "")}">5-hour n/a</span>`, fiveBar = "";
+  if (lim.five_hour_pct != null) {
+    const r = epoch(lim.resets_at), left = r ? Math.max(0, r - now) : null;
+    five = `5-hour <b class="${lim.five_hour_pct >= 80 ? "warn" : ""}">${esc(lim.five_hour_pct)}%</b>` +
+      (left != null ? `, resets in ${esc(dur(left))}` : "") + ` <span class="dim" title="from the brain's last turn">(${esc(ago(lim.as_of, now))})</span>`;
+    fiveBar = `<span class="meter"><i class="${lim.five_hour_pct >= 80 ? "hi" : ""}" style="width:${Math.min(100, Math.max(0, Number(lim.five_hour_pct)))}%"></i></span>`;
+  }
+  heading("sessions", `Claude sessions <small><b>${esc(d.rows.length)}</b> live</small><small>${spend}</small>`);
+  const summary = `<p class="summary">${five}${fiveBar}</p>`;
+  if (!d.rows.length) return summary + empty("No live Claude Code sessions.");
+  const rows = d.rows.map((r) => {
+    const p = r.ctx_tokens && r.ctx_window ? r.ctx_tokens / r.ctx_window : null;
+    const st = r.state === "waiting" && r.waiting_for ? `waiting: ${r.waiting_for}` : r.state;
+    const name = r.window && r.window !== r.project ? `${esc(r.window)} <span class="dim">${esc(r.project)}</span>` : esc(r.project);
+    const percent = p == null ? null : Math.min(100, Math.max(0, p * 100));
+    return `<li class="row" title="${esc((r.model || "") + " " + (r.id || ""))}"><div class="row-main"><span class="name">${name}</span><span class="state ${esc(r.state)}">${esc(st)}</span></div>
+      <div class="row-sub"><span class="num">${esc(r.target || "no tmux")}</span>, ${esc(r.model || "model not reported")}, ${esc(ago(r.updated, now))}</div>
+      ${p == null ? `<div class="ctx"><span>context ${NA}</span></div>` : `<span class="meter"><i class="${p >= .8 ? "hi" : p >= .5 ? "mid" : ""}" style="width:${percent}%"></i></span><div class="ctx"><span>${esc(tok(r.ctx_tokens))} of ${esc(tok(r.ctx_window))}</span><span>${esc(Math.round(percent))}%</span></div>`}</li>`;
+  }).join("");
+  return `${summary}<ul>${rows}</ul>`;
+}
+
+// Brain process history and last observed model.
+function brain(d) {
+  const l = d.live, t = d.today || {};
+  const liveState = !l ? empty("Claude is not running here.") : l.off ? `<p class="err">Claude off (${esc(l.off)})</p>` :
+    `<dl class="kv"><dt>Last observed model</dt><dd>${esc(l.model ?? NA)}</dd>
+      <dt>Process ID</dt><dd class="num">${esc(l.pid ?? NA)}</dd><dt>Turns this process</dt><dd>${esc(l.proc_turns ?? NA)}</dd></dl>`;
+  const life = (Array.isArray(d.lifecycle) ? d.lifecycle : []).map((e) => {
+    const cls = e.ev === "claude_spawn" ? "" : "warn";
+    return `<span class="num">${hm(e.ts)}</span><span class="${cls}">${esc(String(e.ev || "").replace("claude_", ""))}</span>
+      <span>${esc(e.reason ?? (e.code != null ? "exit " + e.code : ""))}</span><span class="num dim">${esc(e.pid ?? "")}</span>`;
+  }).join("");
+  return `${liveState}<div class="stats"><div><b>${esc(t.turns ?? 0)}</b><span>Claude turns today</span></div><div><b>${esc(usd(t.cost, 3))}</b><span>cost today</span></div>
+    <div><b>${esc(t.turns ? usd(t.cost / t.turns, 4) : NA)}</b><span>per turn</span></div><div><b>${esc(tok(t.output_tokens))}</b><span>output tokens</span></div></div>
+    <h3>Process spawns and resets</h3>${life ? `<div class="life">${life}</div>` : empty("No process spawns or resets in the trace yet.")}`;
+}
+
+// Machine and local service state.
+function service(d) {
+  const g = d.gpu || null;
+  const gpu = !g ? `<dd class="dim">${NA}</dd>` : g.error ? `<dd class="err">${esc(g.error)}</dd>` :
+    `<dd><span class="num"><b>${esc(g.ours_mib ?? NA)}</b> MiB ours, ${esc(g.used_mib ?? NA)} / ${esc(g.total_mib ?? NA)} used, ${esc(g.util_pct ?? NA)}% busy</span><br><span class="dim">${esc(g.name ?? NA)}</span></dd>`;
+  const m = d.mic;
+  const mic = !m ? NA : `${esc(m.node || "none")}, ${m.on === false ? `<span class="warn">muted</span>` :
+    m.automute ? `<span class="warn">auto-muted (another app records)</span>` : m.running ? "listening" : `<span class="warn">not running</span>`}`;
+  const models = (Array.isArray(d.models) ? d.models : []).map((x) => `<span>${esc(x.name)} <span class="model-device ${x.device === "cpu" ? "warn" : ""}">${esc(x.device)}</span></span>`).join("");
+  const onoff = (v) => v ? "on" : `<span class="dim">off</span>`;
+  heading("service", `Machine and service <small>up ${esc(dur(d.uptime_s || 0))}, pid ${esc(d.pid ?? NA)}</small>`);
+  return `<dl class="kv"><dt>GPU</dt>${gpu}<dt>Voice</dt><dd>${d.voice ? "running" : `<span class="warn">not running (brain only)</span>`}</dd>
+    <dt>Mic</dt><dd>${mic}</dd><dt>Models</dt><dd class="model-list">${models || `<span class="dim">none reported</span>`}</dd>
+    <dt>Wake word</dt><dd>${onoff(d.wake_word)}</dd><dt>Speaker check</dt><dd>${onoff(d.speaker_check)}</dd></dl>`;
+}
+
+// ---------- The conversation ----------
+function turnLabel(r) {
+  const t = (r && r.story) || {};
+  return `${hhmm(r.ts)} · “${clip(t.heard || t.said || "no speech", 46)}”`;
+}
+function noteFor(turn) {
+  if (!turn) return "General note";
+  const r = rowsById.get(turn) || [...rowsById.values()].find((row) => (row.events || []).some((e) => e.turn === turn));
+  if (r) return `On ${turnLabel(r)}`;
+  const m = /^\d{8}-(\d\d)(\d\d)/.exec(turn);
+  return m ? `On an earlier reply at ${m[1]}:${m[2]}` : "On an earlier reply";
+}
+function act(a) {
+  const rc = a.rc != null && a.rc !== 0 ? ` <span class="err">rc=${esc(a.rc)}</span>` : "";
+  const noteText = !a.ok && a.note ? ` ${esc(clip(a.note, 90))}` : "";
+  return `<span class="act${a.ok ? "" : " no"}" title="${esc(a.note || "")}">${a.ok ? ICON_OK : ICON_NO}<span>${esc(a.name)}${rc}${noteText}</span></span>`;
+}
+function savedNote(n) {
+  const date = new Date(n.ts * 1000);
+  return `<li class="saved-note">${ICON_NOTE}<p>${esc(n.text)}</p><time datetime="${esc(date.toISOString())}">noted ${esc(date.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hour12: false}))}</time></li>`;
+}
+function rowNoteForm(id) {
+  return `<form class="note-form row-note" data-note="${esc(id)}"${noteOpen.has(id) ? "" : " hidden"}>
+      <label class="sr" for="note-${esc(id)}">What happened on this reply?</label>
+      <textarea id="note-${esc(id)}" name="text" rows="2" maxlength="2000" required placeholder="What happened here?" aria-describedby="status-${esc(id)}">${esc(drafts.get(id) || "")}</textarea>
+      <div class="note-footer"><span class="note-status" id="status-${esc(id)}" role="status">${esc(noteStatus.get(id) || HINT)}</span><button class="save" type="submit">Save note</button></div>
+    </form>`;
+}
+function latbar(t) {
+  const w = (x) => Math.min(100, Math.max(0, Number(x) / LAT_MAX * 100));
+  const stt = Number(t.stt_s) || 0, think = Number(t.think_s) || 0, over = stt + think > LAT_MAX;
+  const bar = t.first_audio_s == null && t.stt_s == null ? "" :
+    `<div class="lbar" title="from end of speech, scale ${LAT_MAX}s"><i class="stt" style="width:${w(stt)}%"></i><i class="think" style="width:${w(Math.min(think, Math.max(0, LAT_MAX - stt)))}%"></i>${over ? `<i class="over" style="width:2%"></i>` : ""}</div>`;
+  return `${bar}<p class="lat"><span>STT <b>${esc(secs(t.stt_s))}</b></span><span>think <b>${esc(secs(t.think_s))}</b></span>
+    <span>first sound <b class="${t.first_audio_s > SLOW_S ? "slow" : ""}">${esc(secs(t.first_audio_s))}</b></span><span>total <b>${esc(secs(t.total_s))}</b></span></p>`;
+}
+function details(r, t, route) {
+  const id = String(r.id ?? "");
+  const events = Array.isArray(r.events) ? r.events : [], lines = Array.isArray(r.lines) ? r.lines : [];
+  const raw = events.map((e) => `<div class="${["error", "reject"].includes(e.ev) || e.decision === "deny" || e.is_error ? "bad" : ""}">${esc(JSON.stringify(e))}</div>`).join("");
+  const acts = t.acts && t.acts.length ? t.acts.map(act).join("<br>") : `<span class="dim">none</span>`;
+  return `<div class="details" data-details-for="${esc(id)}"${open.has(id) ? "" : " hidden"}>${latbar(t)}
+    <dl><dt>Route</dt><dd>${route || NA}${t.args ? ` <span class="dim">${esc(clip(JSON.stringify(t.args), 80))}</span>` : ""}</dd>
+      <dt>Actions</dt><dd>${acts}</dd>
+      <dt>Outcome</dt><dd>${esc(t.outcome || "no end recorded")}</dd>
+      ${t.cost != null ? `<dt>Cost</dt><dd class="num">${esc(usd(t.cost, 4))}, ${esc(tok(t.tokens))} context</dd>` : ""}
+      <dt>Turn</dt><dd class="num">${esc(id)}</dd></dl>
+    <details><summary>Trace and raw events (${events.length})</summary><pre class="tl">${esc(lines.join("\n"))}</pre><div class="raw">${raw}</div></details></div>`;
+}
+function turnRow(r) {
+  const t = r.story || {}, kinds = Array.isArray(r.kinds) ? r.kinds : [], id = String(r.id ?? "");
+  const route = t.route === "claude" ? `Claude ${esc(t.model || "")}` : t.route === "fast" ? `Fast ${esc(t.verb || "")}` : esc(t.route || "");
+  const tags = kinds.map((k) => `<span class="tag">${esc(KIND[k] || k)}</span>`).join("") +
+    (t.outcome && t.outcome !== "done" && !kinds.length ? `<span class="tag info">${esc(t.outcome)}</span>` : "") +
+    (!t.outcome ? `<span class="tag info" title="no turn_end: heardbackd restarted mid-turn?">no end</span>` : "") +
+    (t.parent ? `<span class="tag info">follow-up</span>` : "");
+  const notes = Array.isArray(r.notes) ? r.notes : [];
+  const arrived = haveTurns && r.outcome && !finished.has(id);
+  const meta = `<div class="meta"><span><time datetime="${esc(r.ts)}">${esc(hhmm(r.ts))}</time></span>${route ? `<span>${route}</span>` : ""}
+      ${t.first_audio_s != null ? `<span class="${t.first_audio_s > SLOW_S ? "warn" : ""}">${esc(secs(t.first_audio_s))} to first sound</span>` : ""}${tags}
+      <div class="meta-btns"><button type="button" data-toggle="note" data-id="${esc(id)}" aria-expanded="${noteOpen.has(id)}">${ICON_NOTE}Note${notes.length ? ` (${notes.length})` : ""}</button>
+      <button type="button" data-toggle="details" data-id="${esc(id)}" aria-expanded="${open.has(id)}">${ICON_INFO}Details</button></div></div>`;
+  const tail = `${meta}<ul class="notes" data-notes-for="${esc(id)}">${notes.map(savedNote).join("")}</ul>${rowNoteForm(id)}${details(r, t, route)}`;
+  if (!t.heard && !t.said) {
+    return `<article class="turn quiet-turn${arrived ? " arrived" : ""}" data-turn="${esc(id)}" tabindex="-1"><div class="reply">
+      <p class="said none">${t.acts && t.acts.length ? "Ran without speech" : "Nothing was heard"}</p>${tail}</div></article>`;
+  }
+  const you = t.heard ? `<div class="you"><p class="bubble">${esc(t.heard)}</p></div>` : "";
+  const acts = t.acts && t.acts.length ? `<div class="acts">${t.acts.map(act).join("")}</div>` : "";
+  const said = t.said ? `<p class="said">${esc(t.said)}${t.asked ? ` <span class="asked">(asked you)</span>` : ""}</p>` : `<p class="said none">No spoken reply.</p>`;
+  return `<article class="turn${arrived ? " arrived" : ""}" data-turn="${esc(id)}" tabindex="-1">${you}
+    <div class="heardback">${ORB()}<div class="reply">${acts}${said}${tail}</div></div></article>`;
+}
+function dayLabel(iso, now) {
+  const d = new Date(iso), today = new Date(now * 1000);
+  if (isNaN(d)) return "";
+  if (d.toDateString() === today.toDateString()) return "Today";
+  return d.toLocaleDateString([], {weekday: "long", day: "numeric", month: "long"});
+}
+function conversation(d, now) {
+  const rows = Array.isArray(d.rows) ? d.rows : [];
+  if (!Array.isArray(d.rows)) return empty("This service has not reported the turn list.");
+  const done = rows.filter((r) => !r.live);
+  if (!done.length) return `<div class="empty-chat">${ORB()}<p>No conversation yet. Say “hey claude” and it will appear here.</p></div>`;
+  const shown = (filt ? done.filter((r) => Array.isArray(r.kinds) && r.kinds.includes(filt)) : done).slice().reverse();
+  let day = "";
+  const html = shown.map((r) => {
+    const label = dayLabel(r.ts, now), head = label && label !== day ? `<p class="day">${esc(label)}</p>` : "";
+    day = label || day;
+    return head + turnRow(r);
+  }).join("");
+  return (filt ? `<p class="filter-note">Showing ${shown.length} ${esc(KIND[filt] || filt)} turn${shown.length === 1 ? "" : "s"}.<button type="button" data-kind="">Show all</button></p>` : "") + html;
+}
+
+// The turn in flight: what was heard, then thinking, then the reply, as the trace reports them.
+function inflight(s, now) {
+  const box = $("#inflight"), voice = s.live || {}, state = box.dataset.state;
+  const rows = Array.isArray(s.turns?.rows) ? s.turns.rows : [];
+  const current = rows.find((r) => r.id === voice.turn) || {}, t = current.story || {};
+  if (!["listen", "think", "speak", "confirm"].includes(state)) { box.innerHTML = ""; box.dataset.key = ""; return; }
+  const you = t.heard ? `<div class="you"><p class="bubble">${esc(t.heard)}</p></div>` :
+    state === "listen" ? `<div class="you"><p class="bubble listening">${voice.followup ? "Listening for your follow-up…" : "Listening…"}</p></div>` : "";
+  const acts = t.acts && t.acts.length ? `<div class="acts">${t.acts.map(act).join("")}</div>` : "";
+  let reply = "";
+  if (state === "think") reply = `${acts}<p class="thinking">Thinking <span class="elapsed"></span></p>`;
+  else if (state === "speak") reply = `${acts}<p class="said">${esc(t.said || "Speaking…")}</p>`;
+  else if (state === "confirm") reply = `${acts}${t.said ? `<p class="said">${esc(t.said)}</p>` : ""}<p class="thinking">Waiting for yes or no <span class="elapsed"></span></p>`;
+  const html = `<article class="turn">${you}${reply ? `<div class="heardback">${ORB()}<div class="reply">${reply}</div></div>` : ""}</article>`;
+  const key = state + "|" + html;
+  if (box.dataset.key !== key) { box.innerHTML = html; box.dataset.key = key; }   // keeps the orb's motion continuous
+  const el = box.querySelector(".elapsed");
+  if (el) el.textContent = voice.since ? secs(Math.max(0, now - voice.since)) : "";
+}
+
+// Today's reel: one tick per turn from the first turn of the day to now; friction stands taller and red.
+function reel(rows, now) {
+  const day = new Date(now * 1000).toDateString();
+  const marks = rows.map((r) => ({r, t: Date.parse(r.ts) / 1000})).filter((m) => m.t && new Date(m.t * 1000).toDateString() === day).reverse();
+  if (!marks.length) return `<div class="reel" role="img" aria-label="No turns on today's reel yet"></div>`;
+  const t0 = marks[0].t, span = Math.max(60, now - t0), bad = marks.filter((m) => m.r.bad).length;
+  const ticks = marks.map((m) => `<i class="${m.r.live ? "live" : m.r.bad ? "bad" : ""}" style="left:${Math.min(100, (m.t - t0) / span * 100)}%"></i>`).join("");
+  return `<div class="reel" role="img" aria-label="${marks.length} turns since ${hm(marks[0].r.ts)}, ${bad} with friction">${ticks}</div>
+    <div class="reel-ends"><span>${hm(marks[0].r.ts)}</span><span>now</span></div>`;
+}
+function friction(t, d, now) {
+  if (!t || !t.friction) return empty("Today's friction summary is not available in this snapshot.");
+  const pct = t.success_pct, cls = pct == null ? "dim" : pct >= 90 ? "" : pct >= 70 ? "warn" : "err";
+  const L = (d && d.latency) || {}, lat = (k, name) => L[k] && L[k].n ?
+    `<span>${name}: first sound <b>${esc(secs(L[k].first_audio_s))}</b>, STT <b>${esc(secs(L[k].stt_s))}</b> <span class="dim">(median of ${esc(L[k].n)})</span></span>` : "";
+  const entries = Object.entries(t.friction).map(([k, ids]) => [k, Array.isArray(ids) ? ids : []]);
+  const btn = entries.filter(([k, ids]) => ids.length || k === filt).map(([k, ids]) =>
+    `<button type="button" data-kind="${esc(k)}" aria-pressed="${filt === k}" class="${filt === k ? "on" : ""}" title="show only these turns">${esc(KIND[k] || k)}<b>${ids.length}</b></button>`).join("");
+  const clear = entries.filter(([, ids]) => !ids.length).map(([k]) => KIND[k] || k);
+  const head = `<div class="figure"><b>${esc(t.ok ?? 0)}/${esc(t.turns ?? 0)}</b><span>clean turns</span>${pct == null ? "" : `<b class="${cls}">${esc(pct)}%</b>`}</div>
+    <div class="medians">${lat("fast", "Fast path")}${lat("claude", "Claude")}</div>${reel((d && Array.isArray(d.rows)) ? d.rows : [], now)}`;
+  const none = !t.turns ? `<p class="quiet">No voice turns have been recorded today.</p>` : "";
+  return head + none + (btn || filt ? `<div class="fr">${btn}${filt ? `<button type="button" data-kind="" aria-pressed="false" class="on">Show all turns</button>` : ""}</div>` : "") +
+    (t.turns && clear.length ? `<details class="quiet"><summary>${clear.length === entries.length ? "No friction recorded today." : "Other friction kinds clear today"}</summary>None today: ${esc(clear.join(", "))}.</details>` : "");
+}
+
+function notesAndTarget(s) {
+  const d = s.turns || {}, rows = Array.isArray(d.rows) ? d.rows : [];
+  const target = $("#note-target"), selected = target.value;
+  const done = rows.filter((r) => !r.live && r.outcome);
+  const opts = rows.filter((r) => !r.live).map((r) => [r.id, turnLabel(r)]);
+  if (quickPinned && selected && !opts.some(([id]) => id === selected)) opts.push([selected, noteFor(selected).replace(/^On /, "")]);
+  const options = `<option value="">General note</option>` + opts.map(([id, label]) => `<option value="${esc(id)}">${esc(label)}</option>`).join("");
+  if (target.dataset.options !== options) { target.innerHTML = options; target.dataset.options = options; }
+  target.value = quickPinned ? selected : done[0]?.id || "";
+  // A row editor in use keeps its DOM; refresh only the saved notes beside it.
+  rows.forEach((r) => {
+    const list = document.querySelector(`[data-notes-for="${CSS.escape(r.id)}"]`);
+    const html = (Array.isArray(r.notes) ? r.notes : []).map(savedNote).join("");
+    if (list && list.innerHTML !== html) list.innerHTML = html;
+  });
+  const recent = Array.isArray(d.notes) ? d.notes : [];
+  heading("recent-notes", `Notes <small>${recent.length}${recent.length === 100 ? "+" : ""}, newest first</small>`);
+  const html = recent.length ? recent.map((n) => {
+    const known = n.turn && rowsById.has(n.turn);
+    const label = esc(noteFor(n.turn));
+    return `<div>${known ? `<button type="button" class="for" data-goto="${esc(n.turn)}">${label}</button>` : `<p class="for">${label}</p>`}<ul>${savedNote(n)}</ul></div>`;
+  }).join("") : `<p class="empty-state">No notes yet. Add one under any reply.</p>`;
+  const list = $("#recent-note-list");
+  if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; }
+}
+
+function render(s) {
+  const focus = focusToken();
+  const doc = document.documentElement, convoShown = $(".convo").offsetParent !== null;
+  const nearBottom = innerHeight + scrollY >= doc.scrollHeight - 200;
+  live(s.live, s.now);
+  dictation(s.live && s.live.dictation);
+  const turnData = s.turns;
+  rowsById = new Map((Array.isArray(turnData?.rows) ? turnData.rows : []).map((r) => [r.id, r]));
+  panel("friction", turnData && !turnData.error ? turnData.today : turnData, (t) => friction(t, turnData, s.now));
+  panel("sessions", s.sessions, (d) => sessions(d, s.now));
+  panel("brain", s.brain, brain);
+  panel("service", s.service, service);
+  if (!document.activeElement?.closest("#reminders")) panel("reminders", s.reminders, reminders);   // keep an edit in progress
+  // Keep a row editor's DOM intact during typing, selection and IME composition.
+  if (!document.activeElement?.closest("#turns .note-form")) {
+    panel("turns", s.turns, (d) => conversation(d, s.now));
+    if (Array.isArray(s.turns?.rows)) {
+      const first = !haveTurns;
+      s.turns.rows.filter((r) => !r.live && r.outcome).forEach((r) => finished.add(r.id));
+      haveTurns = true;
+      if (first && convoShown) scrollTo(0, doc.scrollHeight);
+    }
+  }
+  inflight(s, s.now);
+  notesAndTarget(s);
+  restoreFocus(focus);
+  if (convoShown && nearBottom && !filt) scrollTo(0, doc.scrollHeight);
+}
+
+const dtl = (t) => { const d = new Date(t * 1000 - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
+function reminders(d) {
+  const row = (r) => `<form class="rem" data-rem="${esc(r.reminder_id)}"><input type="text" name="text" maxlength="300" required value="${esc(r.text)}" aria-label="Reminder text"><input type="datetime-local" name="when" required value="${dtl(r.due_at)}" aria-label="Due"><button type="submit">Save</button><button type="button" data-rem-del>Delete</button><span class="rem-msg"></span></form>`;
+  const add = `<form class="rem" data-rem=""><input type="text" name="text" maxlength="300" required placeholder="New reminder" aria-label="New reminder text"><input type="datetime-local" name="when" required aria-label="Due"><button type="submit">Add</button><span class="rem-msg"></span></form>`;
+  return (d.rows.length ? d.rows.map(row).join("") : empty("No pending reminders.")) + add;
+}
+async function remPost(form, body) {
+  const msg = form.querySelector(".rem-msg");
+  try {
+    const r = await fetch("/api/reminder", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    if (!r.ok) throw new Error((await r.text()).trim() || `HTTP ${r.status}`);
+    form.querySelector(".rem-msg").textContent = "";
+    $("#reminders .body").dataset.html = "";
+    document.activeElement?.blur();   // render() skips this panel while focus is inside it
+    tick();
+  } catch (e) { msg.textContent = e.message; }
+}
+document.addEventListener("submit", (e) => {
+  const form = e.target.closest("form[data-rem]");
+  if (!form) return;
+  e.preventDefault();
+  const id = form.dataset.rem, due_at = Math.floor(new Date(form.elements.when.value).getTime() / 1000);
+  remPost(form, {op: id ? "edit" : "add", id: id || undefined, text: form.elements.text.value.trim(), due_at});
+});
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-rem-del]");
+  if (b && confirm("Delete this reminder?")) remPost(b.form, {op: "cancel", id: b.form.dataset.rem});
+});
+
+function setFreshness(error) {
+  const fresh = $("#fresh"), note = $("#connection-note");
+  if (!error) {
+    delete document.body.dataset.stale;
+    fresh.textContent = `Updated ${new Date(last).toLocaleTimeString([], {hour12: false})}`;
+    fresh.className = "";
+    note.hidden = true;
+    note.textContent = "";
+    return;
+  }
+  document.body.dataset.stale = "";   // stills the orb: a lit state we can't confirm would be a lie
+  fresh.textContent = last ? `Last update ${new Date(last).toLocaleTimeString([], {hour12: false})}` : "Not connected";
+  fresh.className = "stale";
+  if (!last) document.querySelectorAll(".loading").forEach((el) => { el.textContent = "Waiting for heardbackd."; });
+  note.textContent = `${last ? "Showing the last data that loaded. " : "No dashboard data has loaded yet. "}Could not reach heardbackd: ${error}. Retrying automatically.`;
+  note.hidden = false;
+}
+async function tick() {
+  if (tick.running) { tick.again = true; return; }   // a save during a fetch must still refresh
+  clearTimeout(tick.timer);
+  tick.running = true;
+  try {
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 5000);
+    try {
+      const r = await fetch("/api/state", {cache: "no-store", signal: controller.signal});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      lastState = await r.json();
+      last = Date.now();
+    } finally {
+      clearTimeout(deadline);
+    }
+    render(lastState);
+    setFreshness(null);
+  } catch (e) {
+    dictation(null);
+    setFreshness(e && e.message ? e.message : String(e));
+  } finally {
+    tick.running = false;
+    if (tick.again) { tick.again = false; tick.timer = setTimeout(tick, 0); return; }
+    const state = $("#voice-dock").dataset.state;
+    tick.timer = setTimeout(tick, state !== "idle" && state !== "offline" ? 650 : 3000);
+  }
+}
+
+function goto(id) {
+  setView("chat");
+  if (filt) { filt = null; if (lastState) render(lastState); }
+  const row = document.querySelector(`.turn[data-turn="${CSS.escape(id)}"]`);
+  if (!row) return;
+  row.scrollIntoView({block: "center"});
+  row.focus({preventScroll: true});
+  row.classList.add("flash");
+  setTimeout(() => row.classList.remove("flash"), 1400);
+}
+document.addEventListener("click", (e) => {
+  const nav = e.target.closest("button[data-view]");
+  if (nav) { setView(nav.dataset.view); return; }
+  const tg = e.target.closest("button[data-toggle]");
+  if (tg) {
+    const id = tg.dataset.id, set = tg.dataset.toggle === "note" ? noteOpen : open;
+    const el = document.querySelector(tg.dataset.toggle === "note" ? `form[data-note="${CSS.escape(id)}"]` : `[data-details-for="${CSS.escape(id)}"]`);
+    const on = !set.has(id);
+    on ? set.add(id) : set.delete(id);
+    tg.setAttribute("aria-expanded", on);
+    if (el) { el.hidden = !on; if (on && tg.dataset.toggle === "note") el.querySelector("textarea").focus(); }
+    $("#turns .body").dataset.html = "";   // the next poll redraws with the new open state
+    return;
+  }
+  const b = e.target.closest("button[data-kind]");
+  if (b && !b.disabled) {
+    filt = b.dataset.kind && b.dataset.kind !== filt ? b.dataset.kind : null;
+    setView("chat");
+    if (lastState) render(lastState);
+    if (filt) window.scrollTo({top: 0}); else window.scrollTo(0, document.documentElement.scrollHeight);
+    return;
+  }
+  const g = e.target.closest("[data-goto]");
+  if (g) goto(g.dataset.goto);
+});
+document.addEventListener("input", (e) => {
+  const form = e.target.closest("form[data-note]");
+  if (!form) return;
+  if (form.dataset.note === "quick") quickPinned = true;
+  else drafts.set(form.dataset.note, form.elements.text.value);
+});
+$("#note-target").addEventListener("change", () => { quickPinned = true; });
+document.addEventListener("keydown", (e) => {
+  if (!e.target.matches(".note-form textarea")) return;
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
+  if (e.key === "Escape" && e.target.form.dataset.note !== "quick") {
+    const id = e.target.form.dataset.note;
+    document.querySelector(`button[data-toggle="note"][data-id="${CSS.escape(id)}"]`)?.click();
+    document.querySelector(`button[data-toggle="note"][data-id="${CSS.escape(id)}"]`)?.focus();
+  }
+});
+document.addEventListener("submit", async (e) => {
+  const form = e.target.closest("form[data-note]");
+  if (!form) return;
+  e.preventDefault();
+  const button = form.querySelector("button[type=submit]"), status = form.querySelector(".note-status");
+  if (button.disabled) return;
+  const field = form.elements.text, text = field.value.trim(), id = form.dataset.note;
+  const turn = id === "quick" ? $("#note-target").value || null : id;
+  if (!text) { status.textContent = "Write a note first."; field.focus(); return; }
+  button.disabled = true;
+  status.textContent = "Saving…";
+  const controller = new AbortController(), deadline = setTimeout(() => controller.abort(), 8000);
+  try {
+    const r = await fetch("/api/note", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({turn, text}), signal: controller.signal});
+    if (!r.ok) throw new Error((await r.text()).trim() || `HTTP ${r.status}`);
+    if (field.value.trim() === text) { field.value = ""; drafts.delete(id); }
+    status.textContent = turn ? "Note saved under that reply." : "Note saved.";
+    noteStatus.set(id, "Note saved.");
+    if (id === "quick" && !field.value) quickPinned = false;
+    tick();
+  } catch (error) {
+    status.textContent = `Could not confirm save: ${error.message}. Your text is kept; check Notes in Today before retrying.`;
+    noteStatus.set(id, status.textContent);
+  } finally {
+    clearTimeout(deadline);
+    button.disabled = false;
+  }
+});
+setView("chat");
+addEventListener("resize", () => setView(document.body.dataset.view));
+tick();
+</script>
+</body>
+</html>

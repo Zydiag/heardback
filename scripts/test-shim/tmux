@@ -1,0 +1,4 @@
+#!/bin/sh
+# Test shim: only isolated tmux servers (-L/-S) reach the real tmux, so tests never touch the user's session.
+for a in "$@"; do case "$a" in -L|-S|-L*|-S*) exec /usr/bin/tmux "$@";; esac; done
+echo "test shim: refusing tmux without -L/-S" >&2; exit 1

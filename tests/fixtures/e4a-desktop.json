@@ -1,0 +1,52 @@
+{
+  "recorded": "2026-11-17; read-only queries, no actions; window and media text sanitized",
+  "volume": {
+    "argv": [
+      "wpctl",
+      "get-volume",
+      "@DEFAULT_AUDIO_SINK@"
+    ],
+    "stdout": "Volume: 0.54\n"
+  },
+  "brightness": {
+    "argv": [
+      "brightnessctl",
+      "-m"
+    ],
+    "stdout": "nvidia_wmi_ec_backlight,backlight,40,40%,100\n"
+  },
+  "instances": {
+    "argv": [
+      "hyprctl",
+      "-j",
+      "instances"
+    ],
+    "stdout": "[\n{\n    \"instance\": \"11cbc6c577b84ffb1edf4df3fc5b6128c3ae6947_1794839733_419510356\",\n    \"time\": 1794839733,\n    \"pid\": 3580,\n    \"wl_socket\": \"wayland-1\"\n}\n]\n\n"
+  },
+  "clients": {
+    "argv": [
+      "hyprctl",
+      "-j",
+      "clients"
+    ],
+    "stdout": "[\n    {\n        \"address\": \"0x55b164343e10\",\n        \"mapped\": true,\n        \"hidden\": false,\n        \"visible\": true,\n        \"acceptsInput\": true,\n        \"at\": [\n            22,\n            72\n        ],\n        \"size\": [\n            1876,\n            1106\n        ],\n        \"workspace\": {\n            \"address\": \"1\",\n            \"id\": 1,\n            \"type\": \"normal\",\n            \"name\": \"1\"\n        },\n        \"floating\": false,\n        \"monitor\": 0,\n        \"class\": \"kitty\",\n        \"title\": \"Example Page\",\n        \"initialClass\": \"kitty\",\n        \"initialTitle\": \"Example Page\",\n        \"pid\": 8259,\n        \"xwayland\": false,\n        \"pinned\": false,\n        \"pinFullscreened\": false,\n        \"fullscreen\": 0,\n        \"fullscreenClient\": 0,\n        \"fullscreenHandler\": \"default\",\n        \"allowedOverFullscreen\": true,\n        \"grouped\": [],\n        \"tags\": [],\n        \"swallowing\": \"0x0\",\n        \"focusHistoryID\": 2,\n        \"inhibitingIdle\": false,\n        \"xdgTag\": \"\",\n        \"xdgDescription\": \"\",\n        \"contentType\": \"none\",\n        \"tearingHint\": false,\n        \"stableId\": \"18000002\"\n    },\n    {\n        \"address\": \"0x55b16479d050\",\n        \"mapped\": true,\n        \"hidden\": false,\n        \"visible\": true,\n        \"acceptsInput\": true,\n        \"at\": [\n            22,\n            72\n        ],\n        \"size\": [\n            1876,\n            1106\n        ],\n        \"workspace\": {\n            \"address\": \"2\",\n            \"id\": 2,\n            \"type\": \"normal\",\n            \"name\": \"2\"\n        },\n        \"floating\": false,\n        \"monitor\": 0,\n        \"class\": \"zen\",\n        \"title\": \"Example Page\",\n        \"initialClass\": \"zen\",\n        \"initialTitle\": \"Example Page\",\n        \"pid\": 2161286,\n        \"xwayland\": false,\n        \"pinned\": false,\n        \"pinFullscreened\": false,\n        \"fullscreen\": 0,\n        \"fullscreenClient\": 0,\n        \"fullscreenHandler\": \"default\",\n        \"allowedOverFullscreen\": true,\n        \"grouped\": [],\n        \"tags\": [],\n        \"swallowing\": \"0x0\",\n        \"focusHistoryID\": 0,\n        \"inhibitingIdle\": false,\n        \"xdgTag\": \"\",\n        \"xdgDescription\": \"\",\n        \"contentType\": \"none\",\n        \"tearingHint\": false,\n        \"stableId\": \"1800003b\"\n    },\n    {\n        \"address\": \"0x55b164c901b0\",\n        \"mapped\": true,\n        \"hidden\": false,\n        \"visible\": true,\n        \"acceptsInput\": true,\n        \"at\": [\n            22,\n            72\n        ],\n        \"size\": [\n            1876,\n            1106\n        ],\n        \"workspace\": {\n            \"address\": \"3\",\n            \"id\": 3,\n            \"type\": \"normal\",\n            \"name\": \"3\"\n        },\n        \"floating\": false,\n        \"monitor\": 0,\n        \"class\": \"Spotify\",\n        \"title\": \"Example Page\",\n        \"initialClass\": \"Spotify\",\n        \"initialTitle\": \"Example Page\",\n        \"pid\": 1471229,\n        \"xwayland\": true,\n        \"pinned\": false,\n        \"pinFullscreened\": false,\n        \"fullscreen\": 0,\n        \"fullscreenClient\": 0,\n        \"fullscreenHandler\": \"default\",\n        \"allowedOverFullscreen\": true,\n        \"grouped\": [],\n        \"tags\": [],\n        \"swallowing\": \"0x0\",\n        \"focusHistoryID\": 1,\n        \"inhibitingIdle\": false,\n        \"xdgTag\": \"\",\n        \"xdgDescription\": \"\",\n        \"contentType\": \"none\",\n        \"tearingHint\": false,\n        \"stableId\": \"18000021\"\n    }\n]\n"
+  },
+  "activewindow": {
+    "argv": [
+      "hyprctl",
+      "-j",
+      "activewindow"
+    ],
+    "stdout": "{\n    \"address\": \"0x55b16479d050\",\n    \"mapped\": true,\n    \"hidden\": false,\n    \"visible\": true,\n    \"acceptsInput\": true,\n    \"at\": [\n        22,\n        72\n    ],\n    \"size\": [\n        1876,\n        1106\n    ],\n    \"workspace\": {\n        \"address\": \"2\",\n        \"id\": 2,\n        \"type\": \"normal\",\n        \"name\": \"2\"\n    },\n    \"floating\": false,\n    \"monitor\": 0,\n    \"class\": \"zen\",\n    \"title\": \"Example Page\",\n    \"initialClass\": \"zen\",\n    \"initialTitle\": \"Example Page\",\n    \"pid\": 2161286,\n    \"xwayland\": false,\n    \"pinned\": false,\n    \"pinFullscreened\": false,\n    \"fullscreen\": 0,\n    \"fullscreenClient\": 0,\n    \"fullscreenHandler\": \"default\",\n    \"allowedOverFullscreen\": true,\n    \"grouped\": [],\n    \"tags\": [],\n    \"swallowing\": \"0x0\",\n    \"focusHistoryID\": 0,\n    \"inhibitingIdle\": false,\n    \"xdgTag\": \"\",\n    \"xdgDescription\": \"\",\n    \"contentType\": \"none\",\n    \"tearingHint\": false,\n    \"stableId\": \"1800003b\"\n}\n"
+  },
+  "players": {
+    "argv": [
+      "playerctl",
+      "-a",
+      "metadata",
+      "--format",
+      "{{playerInstance}}\t{{status}}\t{{title}}\t{{artist}}\t{{xesam:url}}"
+    ],
+    "stdout": "spotify\tPlaying\tExample Track\tExample Artist\thttps://example.com/v\nfirefox.instance_1_430\tPaused\tExample Track\tExample Artist\thttps://example.com/v\nmpd\tPaused\tExample Track\tExample Artist\t\n"
+  }
+}

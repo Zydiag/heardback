@@ -1,0 +1,12 @@
+{"type": "system", "content": "made-up system line"}
+{"type": "user", "isSidechain": false, "message": {"role": "user", "content": "<command-name>/clear</command-name>"}, "isMeta": true}
+{"type": "user", "isSidechain": false, "message": {"role": "user", "content": "paint the fence blue"}}
+{"type": "assistant", "isSidechain": false, "message": {"role": "assistant", "content": [{"type": "thinking", "thinking": "pondering paint"}]}}
+{"type": "assistant", "isSidechain": false, "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls"}}]}}
+{"type": "user", "isSidechain": false, "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "fence.txt"}]}}
+{"type": "assistant", "isSidechain": false, "message": {"role": "assistant", "content": [{"type": "text", "text": "The fence is now blue."}]}}
+{"type": "api-request-blob", "message": {"role": "assistant", "content": [{"type": "text", "text": "BLOB should be ignored"}]}}
+{"type": "attachment", "attachment": {"type": "file", "content": "made-up"}}
+{"type": "assistant", "isSidechain": true, "message": {"role": "assistant", "content": [{"type": "text", "text": "sidechain chatter"}]}}
+{"type": "user", "isSidechain": false, "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "content": "ok"}, {"type": "text", "text": "also the gate"}]}}
+{"type": "assistant", "isSidechain": false, "message": {"role": "assistant", "content": [{"type": "text", "text": "Gate done too."}]}}

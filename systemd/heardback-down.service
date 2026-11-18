@@ -1,0 +1,9 @@
+[Unit]
+Description=Tell the user heardback is down
+
+[Service]
+Type=oneshot
+# OnFailure fires on every failure, also a single watchdog kill that Restart= recovers from (live 20:36).
+# Within RestartSec (5 s) a restarting unit leaves "failed"; after 20 s it is still failed only when it gave up.
+ExecStart=/bin/sh -c 'sleep 20; systemctl --user is-failed -q heardback.service && /usr/bin/notify-send -a heardback -u critical "heardback is down"'
+SuccessExitStatus=1

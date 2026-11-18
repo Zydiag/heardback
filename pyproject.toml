@@ -1,0 +1,56 @@
+[project]
+name = "heardback"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+voice = ["numpy", "torch", "torchaudio", "faster-whisper", "kokoro", "silero-vad",
+         "onnxruntime", "openwakeword", "speechbrain", "huggingface_hub",
+         # misaki (kokoro G2P) pip-installs this at first use otherwise
+         "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"]
+voice-cpu = ["numpy", "torch==2.11.0", "torchaudio==2.11.0", "faster-whisper", "kokoro", "silero-vad",
+             "onnxruntime", "openwakeword", "speechbrain", "huggingface_hub",
+             "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"]
+
+[project.scripts]
+jv = "jv.cli:main"
+zen-host = "jv.zen_host:main"
+jv-hook = "heardback.status.hook:main"
+heardbackd = "heardback.daemon:main"
+heardback-voice = "heardback.voice.cli:main"
+heardback = "heardback.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+conflicts = [[{ extra = "voice" }, { extra = "voice-cpu" }]]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128", extra = "voice" }, { index = "pytorch-cpu", extra = "voice-cpu" }]
+torchaudio = [{ index = "pytorch-cu128", extra = "voice" }, { index = "pytorch-cpu", extra = "voice-cpu" }]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jv", "src/heardback"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["models: loads real models; run with HEARDBACK_MODELS=1", "tmux: uses a real tmux server (auto-marked)", "slow: real-subprocess heavy (auto-marked)"]

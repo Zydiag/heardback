@@ -1,0 +1,38 @@
+[
+  {
+    "index": 64,
+    "name": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor",
+    "description": "Monitor of Built-in Audio Analog Stereo",
+    "properties": {
+      "device.api": "alsa",
+      "device.bus": "pci",
+      "device.class": "monitor",
+      "node.name": "alsa_output.pci-0000_00_1f.3.analog-stereo",
+      "media.class": "Audio/Sink"
+    }
+  },
+  {
+    "index": 65,
+    "name": "alsa_input.pci-0000_00_1f.3.analog-stereo",
+    "description": "Built-in Audio Analog Stereo",
+    "properties": {
+      "device.api": "alsa",
+      "device.bus": "pci",
+      "device.class": "sound",
+      "node.name": "alsa_input.pci-0000_00_1f.3.analog-stereo",
+      "media.class": "Audio/Source"
+    }
+  },
+  {
+    "index": 77,
+    "name": "bluez_input.88:92:CC:F1:A1:01.0",
+    "description": "Buds",
+    "properties": {
+      "device.api": "bluez5",
+      "device.bus": "bluetooth",
+      "device.class": "sound",
+      "node.name": "bluez_input.88:92:CC:F1:A1:01.0",
+      "media.class": "Audio/Source"
+    }
+  }
+]

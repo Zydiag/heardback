@@ -1,0 +1,27 @@
+{
+ "cmd.wav": {
+  "text": "Switch to tmux window two.",
+  "speech_start_s": 0.5,
+  "speech_end_s": 1.94
+ },
+ "yes.wav": {
+  "text": "Yeah, do it.",
+  "speech_start_s": 0.3,
+  "speech_end_s": 1.03
+ },
+ "maybe.wav": {
+  "text": "Maybe later.",
+  "speech_start_s": 0.3,
+  "speech_end_s": 1.05
+ },
+ "other.wav": {
+  "text": "Switch to tmux window two.",
+  "speech_start_s": 0.3,
+  "speech_end_s": 2.31
+ },
+ "noise.wav": {
+  "text": "",
+  "speech_start_s": null,
+  "speech_end_s": null
+ }
+}

@@ -1,0 +1,46 @@
+
+● Bash(cd ~/work/projects/heardback && sd '; spec reads as if the GPU pool did the VAD\.' '.' handoffs/reports/howto.md && rg -n '^5\.' handoffs/reports/howto.md)
+  ⎿  17:5. Silero VAD runs on CPU (onnxruntime has only CPU/Azure providers), though it's loaded via the GPU executor.
+  ⎿  Updated handoffs/reports/howto.md (+1 -1)
+      14  2. `stt_model` in voice.toml is read and validated but never used (`stt.py` hardcodes `REPOS["stt"]`).
+      15  3. Fast path is ~2 s to first audio, not "instant": STT 0.4 s + brain ≤0.2 s leaves ~1.5 s unexplained (Kokoro synth + pw-play spawn). `first_audio_at` is stamped after
+           `stdin.drain()` of the first sentence, so pipe-buffer backpressure probably inflates it for sentences >64 KB of float32 (~0.7 s of audio). Worth a look with trace `tur
+          n_end` numbers before tuning.
+      16  4. brain.log 15:15:12/14: `denied tool=tmux_type rc=1 reason="'active'"` = a `KeyError: 'active'` inside the tmux verb's dry-run (trace.jsonl has `tmux_bad_line` events
+          ), i.e. the bug trace task 6 targets, not a refusal.
+      17 -5. Silero VAD runs on CPU (onnxruntime has only CPU/Azure providers), though it's loaded via the GPU executor; spec reads as if the GPU pool did the VAD.
+      17 +5. Silero VAD runs on CPU (onnxruntime has only CPU/Azure providers), though it's loaded via the GPU executor.
+      18  6. PTT signal goes to `uv` (`--kill-whom=main`), which forwards SIGUSR1 to heardbackd. Works, but a uv change in signal forwarding would silently break SUPER+C.
+  ⎿  Allowed by auto mode
+
+● I wrote docs/how-it-works.md, added its line to docs/INDEX.md, and committed both as 713dff9 "docs: how it works" on trace. Nothing else was staged, and I didn't push. The # REPORT is
+  appended to handoffs/reports/howto.md; I left that file uncommitted because the brief only says to append.
+
+  What I measured (read-only, 15:32–15:40 IST, about 2.5 minutes after a restart):
+  - Speed: a fast-path reply starts speaking about 2.35 s (median) after the mic decides you've stopped. A Claude reply takes about 5.3 s (median, range 3.1–9.1). Speech-to-text takes
+    about 0.4 s either way. This comes from 29 voice turns in the journal, matched to brain.log.
+  - Local models: speech-to-text (whisper large-v3-turbo) and the voice (Kokoro, af_heart) run on the GPU. Voice detection runs on the CPU. The wake word and speaker check are both off.
+    Model files take 2.3 GB on disk.
+  - Claude: this is the only part that isn't local. It runs on your subscription (apiKeySource: none, Haiku). Cost per turn shows as $0.0001–$0.0014, but that's what Claude Code reports
+    as the API equivalent, not a charge. It counts against your plan's usage limits.
+  - GPU while idle: 2850 MiB of video memory held, 0% load, 3.3 W in its lowest power state. heardbackd uses 2.9 GiB of RAM and 0–1% CPU. I didn't measure GPU load during a turn, because
+    the brief said not to trigger turns or play audio.
+
+  Things in the code that surprised me (all in the report):
+  1. The live service runs your working copy, not the installed snapshot. heardback.service uses uv run --project on the repo, and Claude's jv tools come from the repo's .venv too. So
+     whichever branch is checked out at restart is what runs. The 15:29 restart is running the trace branch right now. The handoff's "worker edits never reach live" is only true for the
+     hooks.
+  2. The stt_model setting in voice.toml does nothing. The code checks it but always loads the same model.
+  3. Fast-path replies aren't instant, and the timer may overstate them. About 1.5 s of the ~2 s is unaccounted for, probably voice synthesis plus starting the audio player. The "first
+     audio" time is recorded only after the first sentence is fully handed to the player, so long first sentences probably look slower than they are.
+  4. The 15:15 refusal to type into tmux was a bug, not a refusal. brain.log's denied … reason='active' was a KeyError: 'active' inside the tmux command, which is what trace task 6 is
+     fixing.
+
+✻ Cooked for 4m 49s · done 3:36 PM
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  heardback 🌿 (trace) | ctx ███░░░░░░░░░░░░░░░░░ 13% (132k/1M) | session 48% 🕐 3m · week 60% | +134 -0 | Opus 5.5
+  ⏵⏵ auto mode on (shift+tab to cycle)
+

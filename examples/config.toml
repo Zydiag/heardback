@@ -1,0 +1,20 @@
+# Desktop settings: ~/.config/heardback/config.toml (or HEARDBACK_CONFIG).
+# Loaded once per process. Voice tuning stays in voice.toml.
+[user]
+# name = "Alex" # Omit to address "the user" in the brain prompt.
+
+[tmux]
+# session = "main" # Omit to use the current session, or the first session outside tmux.
+project_roots = ["~"] # Search direct child folders for spoken project names.
+claude_dirs = ["~"] # Claude folders allowed without an extra read-back (still under home).
+claude_home = "~" # Start Claude here when no folder is named; home if absent.
+
+[devices]
+aliases = {} # Spoken Bluetooth nickname -> part of an already-paired device name.
+
+[mic]
+mode = "default" # Initial mode; voice.toml's mic can override it.
+[mic.modes]
+# Mode names are arbitrary. Values are source names/globs, tried in order.
+# Example: headset = ["bluez_input.*", "alsa_input.*"] falls back when disconnected.
+default = ["@DEFAULT_SOURCE@"] # PipeWire/PulseAudio's system default input (never a monitor).

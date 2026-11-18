@@ -1,0 +1,32 @@
+name: Feature request
+description: A new verb, phrase or setting
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What you want to say or do
+      description: The request in your own words, and what should happen.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The problem it solves. How do you do it today?
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Could it change or delete anything?
+      description: Helps decide whether it needs a read-back and a spoken yes.
+      options:
+        - No, it only reads
+        - Yes, but it's easy to undo
+        - Yes, and it's hard to undo
+        - Not sure
+  - type: checkboxes
+    id: actions
+    attributes:
+      label: Checked first
+      options:
+        - label: It isn't in docs/commands.md, and a user action in actions.toml can't already do it.

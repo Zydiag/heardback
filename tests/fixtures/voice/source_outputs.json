@@ -1,0 +1,6 @@
+[
+  {"index": 101, "source": 65, "properties": {"node.name": "heardback-mic", "application.name": "pw-record", "media.name": "pw-record"}},
+  {"index": 102, "source": 64, "properties": {"node.name": "cava", "application.name": "cava", "media.name": "cava"}},
+  {"index": 103, "source": 65, "properties": {"node.name": "PulseAudio Volume Control", "application.name": "PulseAudio Volume Control", "application.id": "org.PulseAudio.pavucontrol", "media.name": "Peak detect", "stream.monitor": "true"}},
+  {"index": 104, "source": 65, "properties": {"node.name": "Zen", "application.name": "Zen", "media.name": "WEBRTC VoiceEngine"}}
+]

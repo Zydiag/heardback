@@ -1,0 +1,8 @@
+{
+  "manifest_version": 2,
+  "name": "heardback",
+  "version": "0.3.7",
+  "browser_specific_settings": {"gecko": {"id": "jarvis@zydiag.local"}},
+  "background": {"scripts": ["background.js"]},
+  "permissions": ["tabs", "nativeMessaging", "search", "<all_urls>"]
+}

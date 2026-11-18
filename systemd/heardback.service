@@ -1,0 +1,24 @@
+[Unit]
+Description=heardback voice assistant
+After=pipewire.service graphical-session.target
+PartOf=graphical-session.target
+OnFailure=heardback-down.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+# the uv tool snapshot from scripts/install-snapshot.sh, not the checkout
+ExecStart=%h/.local/bin/heardbackd
+ExecStopPost=-%h/.local/bin/heardback-voice dictation-reset-lock
+Type=notify
+NotifyAccess=main
+WatchdogSec=30
+TimeoutStartSec=180
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+Environment=HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_OFFLINE=1 HF_HOME=%h/.local/share/heardback/models/hf
+
+[Install]
+WantedBy=graphical-session.target

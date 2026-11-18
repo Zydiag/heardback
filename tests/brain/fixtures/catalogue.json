@@ -1,0 +1,503 @@
+{
+ "version": 1,
+ "verbs": [
+  {
+   "name": "tmux.select",
+   "domain": "tmux",
+   "verb": "select",
+   "description": "tmux.select",
+   "confirm": false,
+   "effect": "reversible",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "window": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "window"
+    ]
+   },
+   "argv": [
+    "window"
+   ],
+   "args": {
+    "window": {
+     "type": "enum",
+     "choices": [
+      "1",
+      "2",
+      "3",
+      "web",
+      "notes",
+      "claude"
+     ]
+    }
+   },
+   "phrases": [
+    "switch to tmux window {window:enum}",
+    "switch to window {window:enum}",
+    "window {window:enum}"
+   ],
+   "examples": []
+  },
+  {
+   "name": "hypr.workspace",
+   "domain": "hypr",
+   "verb": "workspace",
+   "description": "hypr.workspace",
+   "confirm": false,
+   "effect": "reversible",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "n": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+     }
+    },
+    "required": [
+     "n"
+    ]
+   },
+   "argv": [
+    "n"
+   ],
+   "args": {
+    "n": {
+     "type": "int"
+    }
+   },
+   "phrases": [
+    "switch to workspace {n:int}"
+   ],
+   "examples": []
+  },
+  {
+   "name": "hypr.open",
+   "domain": "hypr",
+   "verb": "open",
+   "description": "hypr.open",
+   "confirm": false,
+   "effect": "reversible",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "app": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "app"
+    ]
+   },
+   "argv": [
+    "app"
+   ],
+   "args": {
+    "app": {
+     "type": "enum",
+     "choices": [
+      "zen",
+      "kitty",
+      "spotify",
+      "visual studio code"
+     ]
+    }
+   },
+   "phrases": [
+    "open {app:enum}"
+   ],
+   "examples": []
+  },
+  {
+   "name": "hypr.launch",
+   "domain": "hypr",
+   "verb": "launch",
+   "description": "hypr.launch",
+   "confirm": false,
+   "effect": "reversible",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "app": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "app"
+    ]
+   },
+   "argv": [
+    "app"
+   ],
+   "args": {
+    "app": {
+     "type": "enum",
+     "choices": [
+      "zen",
+      "kitty",
+      "spotify",
+      "visual studio code"
+     ]
+    }
+   },
+   "phrases": [
+    "launch {app:enum}"
+   ],
+   "examples": []
+  },
+  {
+   "name": "wall.next",
+   "domain": "wall",
+   "verb": "next",
+   "description": "wall.next",
+   "confirm": false,
+   "effect": "reversible",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   },
+   "argv": [],
+   "args": {},
+   "phrases": [
+    "next wallpaper"
+   ],
+   "examples": []
+  },
+  {
+   "name": "wall.random",
+   "domain": "wall",
+   "verb": "random",
+   "description": "wall.random",
+   "confirm": false,
+   "effect": "reversible",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   },
+   "argv": [],
+   "args": {},
+   "phrases": [
+    "random wallpaper"
+   ],
+   "examples": []
+  },
+  {
+   "name": "wall.current",
+   "domain": "wall",
+   "verb": "current",
+   "description": "wall.current",
+   "confirm": false,
+   "effect": "read",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   },
+   "argv": [],
+   "args": {},
+   "phrases": [
+    "what's my wallpaper"
+   ],
+   "examples": []
+  },
+  {
+   "name": "zen.close",
+   "domain": "zen",
+   "verb": "close",
+   "description": "zen.close",
+   "confirm": "auto",
+   "effect": "unknown",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ]
+   },
+   "argv": [
+    "query"
+   ],
+   "args": {
+    "query": {
+     "type": "text"
+    }
+   },
+   "phrases": [
+    "close tab {query:text}"
+   ],
+   "examples": []
+  },
+  {
+   "name": "zen.close-unused",
+   "domain": "zen",
+   "verb": "close-unused",
+   "description": "zen.close-unused",
+   "confirm": true,
+   "effect": "unknown",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "hours": {
+      "type": "integer"
+     }
+    },
+    "required": []
+   },
+   "argv": [
+    "--hours"
+   ],
+   "args": {},
+   "phrases": [
+    "close unused tabs"
+   ],
+   "examples": []
+  },
+  {
+   "name": "zen.ask",
+   "domain": "zen",
+   "verb": "ask",
+   "description": "zen.ask",
+   "confirm": false,
+   "effect": "outbound",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "maxLength": 4000
+     },
+     "no_send": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "text"
+    ]
+   },
+   "argv": [
+    "text",
+    "--no-send"
+   ],
+   "args": {
+    "text": {
+     "type": "text"
+    }
+   },
+   "phrases": [
+    "ask (in )?claude {text:text}"
+   ],
+   "examples": []
+  },
+  {
+   "name": "tmux.type",
+   "domain": "tmux",
+   "verb": "type",
+   "description": "tmux.type",
+   "confirm": "auto",
+   "effect": "unknown",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "target": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     },
+     "enter": {
+      "type": "boolean"
+     },
+     "clipboard": {
+      "type": "boolean"
+     },
+     "selection": {
+      "type": "boolean"
+     },
+     "source_revision": {
+      "type": "string",
+      "maxLength": 74,
+      "pattern": "^(clipboard|selection):[0-9a-f]{64}$"
+     }
+    },
+    "required": [
+     "target"
+    ]
+   },
+   "argv": [
+    "target",
+    "text",
+    "--enter",
+    "--clipboard",
+    "--selection",
+    "--source-revision"
+   ],
+   "args": {
+    "target": {
+     "type": "int"
+    },
+    "text": {
+     "type": "text"
+    }
+   },
+   "phrases": [
+    "paste my clipboard into window {target:int}"
+   ],
+   "phrase_args": {
+    "paste my clipboard into window {target:int}": {
+     "clipboard": true
+    }
+   },
+   "examples": []
+  },
+  {
+   "name": "status.list",
+   "domain": "status",
+   "verb": "list",
+   "description": "status.list",
+   "confirm": false,
+   "effect": "read",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   },
+   "argv": [],
+   "args": {},
+   "phrases": [
+    "list sessions"
+   ],
+   "examples": []
+  },
+  {
+   "name": "zen.install",
+   "domain": "zen",
+   "verb": "install",
+   "description": "zen.install",
+   "confirm": false,
+   "effect": "unknown",
+   "voice": false,
+   "params": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   },
+   "argv": [],
+   "args": {},
+   "phrases": [
+    "install zen"
+   ],
+   "examples": []
+  },
+  {
+   "name": "do.open-zen",
+   "domain": "do",
+   "verb": "open-zen",
+   "description": "do.open-zen",
+   "confirm": false,
+   "effect": "unknown",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   },
+   "argv": [],
+   "args": {},
+   "phrases": [
+    "open zen",
+    "show zen",
+    "browser"
+   ],
+   "examples": []
+  },
+  {
+   "name": "do.play-movie",
+   "domain": "do",
+   "verb": "play-movie",
+   "description": "do.play-movie",
+   "confirm": false,
+   "effect": "unknown",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string",
+      "maxLength": 200
+     }
+    },
+    "required": [
+     "title"
+    ]
+   },
+   "argv": [
+    "title"
+   ],
+   "args": {
+    "title": {
+     "type": "text"
+    }
+   },
+   "phrases": [
+    "play movie {title:text}",
+    "put on {title:text}"
+   ],
+   "examples": []
+  },
+  {
+   "name": "do.accept",
+   "domain": "do",
+   "verb": "accept",
+   "description": "do.accept",
+   "confirm": true,
+   "effect": "unknown",
+   "voice": true,
+   "params": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ]
+   },
+   "argv": [
+    "name"
+   ],
+   "args": {
+    "name": {
+     "type": "enum",
+     "choices": []
+    }
+   },
+   "phrases": [
+    "add {name:enum}"
+   ],
+   "examples": []
+  }
+ ]
+}

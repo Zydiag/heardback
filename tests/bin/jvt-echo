@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""Fake action step: prints its argv as JSON. --fail: 'boom' on stderr, exit 1. --sleep N. --lines."""
+import json
+import os
+import sys
+import time
+
+a = sys.argv[1:]
+if os.environ.get("JVT_LOG"):
+    with open(os.environ["JVT_LOG"], "a") as f:
+        f.write(json.dumps(a) + "\n")
+if a[:1] == ["--fail"]:
+    print("boom", file=sys.stderr)
+    sys.exit(1)
+if a[:1] == ["--sleep"]:
+    time.sleep(float(a[1]))
+if a[:1] == ["--lines"]:
+    sys.stdout.write("a\n....\nlast\n\n\n")
+else:
+    print(json.dumps(a))
