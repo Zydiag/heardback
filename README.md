@@ -28,7 +28,7 @@ You need Linux, Python 3.12+, [uv](https://docs.astral.sh/uv/), tmux, and Claude
 
 ```sh
 uv tool install heardback      # installs jv, heardbackd, heardback-voice (no voice models yet)
-heardback doctor               # checks Claude Code, tmux, PipeWire, models; prints a fix for each miss
+heardback doctor               # checks Claude Code, tmux, PipeWire and models; prints a fix for each miss
 jv tmux list                   # your tmux windows, with Claude Code sessions marked
 jv list                        # every verb and the phrases that reach it
 jv status install-hooks        # optional: lets heardback see Claude Code session state
