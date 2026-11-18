@@ -24,10 +24,10 @@ Say the wake word (or press a key), speak, and heardback switches tmux windows, 
 
 ## Quick start (2 minutes, no microphone)
 
-You need Linux, Python 3.12+, [uv](https://docs.astral.sh/uv/), tmux, and Claude Code installed and logged in.
+Not on PyPI yet: install from GitHub. You need Linux, Python 3.12+, [uv](https://docs.astral.sh/uv/), tmux, and Claude Code installed and logged in.
 
 ```sh
-uv tool install heardback      # installs jv, heardbackd, heardback-voice (no voice models yet)
+uv tool install git+https://github.com/Zydiag/heardback   # installs jv, heardbackd, heardback-voice (no voice models yet)
 heardback doctor               # checks Claude Code, tmux, PipeWire, models; prints a fix for each miss
 jv tmux list                   # your tmux windows, with Claude Code sessions marked
 jv list                        # every verb and the phrases that reach it
@@ -39,8 +39,8 @@ jv status install-hooks        # optional: lets heardback see Claude Code sessio
 ### Add voice
 
 ```sh
-uv tool install 'heardback[voice]'      # NVIDIA GPU (CUDA): a large download
-uv tool install 'heardback[voice-cpu]'  # no GPU: smaller models, slower replies
+uv tool install --reinstall 'heardback[voice] @ git+https://github.com/Zydiag/heardback'      # NVIDIA GPU (CUDA): a large download
+uv tool install --reinstall 'heardback[voice-cpu] @ git+https://github.com/Zydiag/heardback'  # no GPU: smaller models, slower replies
 heardback-voice setup                    # downloads the pinned models
 ```
 
